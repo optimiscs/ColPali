@@ -39,7 +39,7 @@ dependencies = [
     "requests",
     "scipy",
     "torch>=2.8.0,<2.9.0",
-    "torchvision>=0.23.0,<0.24.0",
+    "torchvision>=0.23.0,<0.27.0",
     "transformers>=5.2.0,<6.0.0",
 ]
 
