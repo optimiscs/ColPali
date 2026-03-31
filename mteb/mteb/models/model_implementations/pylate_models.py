@@ -1,0 +1,892 @@
+from __future__ import annotations
+
+import heapq
+import logging
+import shutil
+import tempfile
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+from mteb._create_dataloaders import create_dataloader
+from mteb._requires_package import requires_package
+from mteb.models.abs_encoder import AbsEncoder, get_prompt
+from mteb.models.model_meta import ModelMeta, ScoringFunction
+from mteb.types import PromptType
+
+if TYPE_CHECKING:
+    from torch.utils.data import DataLoader
+    from typing_extensions import Unpack
+
+    from mteb.abstasks.task_metadata import TaskMetadata
+    from mteb.types import (
+        Array,
+        BatchedInput,
+        CorpusDatasetType,
+        EncodeKwargs,
+        QueryDatasetType,
+        RetrievalOutputType,
+        TopRankedDocumentsType,
+    )
+
+
+logger = logging.getLogger(__name__)
+
+
+class PylateSearchEncoder:
+    """Mixin class to add PyLate-based indexing and search to an encoder. Implements [SearchProtocol][mteb.models.SearchProtocol]"""
+
+    base_index_dir: Path | None = None
+    _index_dir: Path | None = None
+    _index_name: str | None = None
+    _index_autodelete: bool = True
+    task_corpus: CorpusDatasetType | None = None
+    index_kwargs: dict[str, Any] = {}  # noqa: RUF012
+
+    def index(
+        self,
+        corpus: CorpusDatasetType,
+        *,
+        task_metadata: TaskMetadata,
+        hf_split: str,
+        hf_subset: str,
+        encode_kwargs: EncodeKwargs,
+        num_proc: int | None,
+    ) -> None:
+        """Index the corpus for retrieval.
+
+        Args:
+            corpus: Corpus dataset to index.
+            task_metadata: Metadata of the task, used to determine how to index the corpus.
+            hf_split: Split of current task, allows to know some additional information about current split.
+            hf_subset: Subset of current task. Similar to `hf_split` to get more information
+            encode_kwargs: Additional arguments to pass to the encoder during indexing.
+            num_proc: Number of processes to use for indexing.
+        """
+        self.task_corpus = corpus
+
+        safe_task = task_metadata.name.replace("/", "__")
+
+        index_dir_name = f"mteb-index-{safe_task}-{hf_subset}-{hf_split}"
+        if self.base_index_dir is None:
+            self._index_dir = Path(tempfile.mkdtemp(prefix=index_dir_name))
+        else:
+            self._index_dir = self.base_index_dir / index_dir_name
+            self._index_dir.mkdir(parents=True, exist_ok=True)
+
+        if self._index_name is None:
+            self._index_name = "index"
+
+    def search(
+        self,
+        queries: QueryDatasetType,
+        *,
+        task_metadata: TaskMetadata,
+        hf_split: str,
+        hf_subset: str,
+        top_k: int,
+        encode_kwargs: EncodeKwargs,
+        top_ranked: TopRankedDocumentsType | None = None,
+        num_proc: int | None,
+    ) -> RetrievalOutputType:
+        queries_dataloader = create_dataloader(
+            queries,
+            task_metadata,
+            prompt_type=PromptType.query,
+            batch_size=encode_kwargs.get("batch_size", 32),
+            num_proc=num_proc,
+        )
+
+        query_embeddings = self._encode(
+            queries_dataloader,
+            task_metadata=task_metadata,
+            hf_split=hf_split,
+            hf_subset=hf_subset,
+            prompt_type=PromptType.query,
+            **encode_kwargs,
+        )
+        query_idx_to_id = {i: row["id"] for i, row in enumerate(queries)}
+
+        if top_ranked is not None:
+            logger.info("Reranking with PyLate...")
+            result_heaps = self._pylate_rerank_documents(
+                query_idx_to_id=query_idx_to_id,
+                query_embeddings=query_embeddings,
+                top_ranked=top_ranked,
+                top_k=top_k,
+                task_metadata=task_metadata,
+                hf_subset=hf_subset,
+                hf_split=hf_split,
+                encode_kwargs=encode_kwargs,
+                num_proc=num_proc,
+            )
+        else:
+            result_heaps = self._pylate_full_corpus_search(
+                query_idx_to_id=query_idx_to_id,
+                query_embeddings=query_embeddings,
+                top_k=top_k,
+                task_metadata=task_metadata,
+                hf_subset=hf_subset,
+                hf_split=hf_split,
+                encode_kwargs=encode_kwargs,
+                num_proc=num_proc,
+            )
+
+        results = {qid: {} for qid in query_idx_to_id.values()}
+        for qid in result_heaps:
+            for score, corpus_id in result_heaps[qid]:
+                results[qid][corpus_id] = score
+
+        return results
+
+    def _pylate_full_corpus_search(
+        self,
+        query_idx_to_id: dict[int, str],
+        query_embeddings: Array,
+        task_metadata: TaskMetadata,
+        hf_subset: str,
+        hf_split: str,
+        top_k: int,
+        encode_kwargs: EncodeKwargs,
+        num_proc: int | None,
+    ) -> dict[str, list[tuple[float, str]]]:
+        from pylate import indexes, retrieve
+
+        logger.info("Retrieving with MultiVector index...")
+
+        if self._index_dir is None or self._index_name is None:
+            raise ValueError("Index path is not set. Call index() before search().")
+
+        index = indexes.PLAID(
+            index_folder=str(self._index_dir),
+            index_name=self._index_name,
+            # disable triton kernel for reproducibility
+            # https://github.com/embeddings-benchmark/mteb/pull/3183#issuecomment-3311029707
+            use_triton=False,
+            **self.index_kwargs,
+        )
+
+        # Collect all IDs
+        doc_ids = [str(x) for x in self.task_corpus["id"]]
+
+        # Encode entire corpus via dataloader batching
+        documents_loader = create_dataloader(
+            self.task_corpus,
+            task_metadata,
+            prompt_type=PromptType.document,
+            batch_size=encode_kwargs.get("batch_size", 32),
+            num_proc=num_proc,
+        )
+        documents_embeddings = self._encode(
+            documents_loader,
+            task_metadata=task_metadata,
+            hf_split=hf_split,
+            hf_subset=hf_subset,
+            prompt_type=PromptType.document,
+            **encode_kwargs,
+        )
+
+        # Add documents to index
+        index.add_documents(
+            documents_ids=doc_ids,
+            documents_embeddings=documents_embeddings,
+        )
+        retriever = retrieve.ColBERT(index=index)
+        scores = retriever.retrieve(queries_embeddings=query_embeddings, k=top_k)
+
+        # Build heaps in the same structure as dense path for consistency
+        result_heaps = {qid: [] for qid in query_idx_to_id.values()}
+        for q_idx, qid in query_idx_to_id.items():
+            # scores[q_idx] is a list of dicts: {"id": str, "score": float}
+            for item in scores[q_idx]:
+                heapq.heappush(
+                    result_heaps[qid], (float(item["score"]), str(item["id"]))
+                )
+        return result_heaps
+
+    def _pylate_rerank_documents(
+        self,
+        query_idx_to_id: dict[int, str],
+        query_embeddings: Array,
+        top_ranked: TopRankedDocumentsType,
+        top_k: int,
+        task_metadata: TaskMetadata,
+        hf_subset: str,
+        hf_split: str,
+        encode_kwargs: EncodeKwargs,
+        num_proc: int | None = None,
+    ) -> dict[str, list[tuple[float, str]]]:
+        """Rerank with PyLate's rank.rerank using per-query candidates.
+
+        Keeps dense rerank untouched by using a PyLate-only path.
+
+        Returns:
+            A dictionary mapping query IDs to a list of tuples, each containing a score and a document ID.
+        """
+        from pylate import rank
+
+        if self.task_corpus is None:
+            raise ValueError("Corpus must be set before reranking.")
+
+        result_heaps = {qid: [] for qid in query_idx_to_id.values()}
+        doc_id_to_idx = {doc["id"]: idx for idx, doc in enumerate(self.task_corpus)}
+
+        all_doc_embeddings = self._encode(
+            create_dataloader(
+                self.task_corpus,
+                task_metadata,
+                prompt_type=PromptType.document,
+                batch_size=encode_kwargs.get("batch_size", 32),
+                num_proc=num_proc,
+            ),
+            task_metadata=task_metadata,
+            hf_split=hf_split,
+            hf_subset=hf_subset,
+            prompt_type=PromptType.document,
+            **encode_kwargs,
+        )
+
+        # Process one query at a time to keep it simple
+        for q_idx, qid in query_idx_to_id.items():
+            if qid not in top_ranked:
+                continue
+            ranked_ids = top_ranked[qid]
+            if not ranked_ids:
+                continue
+
+            doc_indices = [doc_id_to_idx[doc_id] for doc_id in ranked_ids]
+            query_doc_embeddings = [all_doc_embeddings[idx] for idx in doc_indices]
+
+            q_emb = query_embeddings[q_idx]
+            reranked = rank.rerank(
+                documents_ids=[ranked_ids],
+                queries_embeddings=[q_emb],
+                documents_embeddings=[query_doc_embeddings],
+            )
+
+            # Parse PyLate's output
+            for item in reranked[0]:  # list of dicts
+                heapq.heappush(
+                    result_heaps[qid], (float(item["score"]), str(item["id"]))
+                )
+
+            # Keep only top_k
+            if len(result_heaps[qid]) > top_k:
+                result_heaps[qid] = heapq.nlargest(top_k, result_heaps[qid])
+
+        if self._index_autodelete and self._index_dir is not None:
+            try:
+                shutil.rmtree(self._index_dir, ignore_errors=True)
+            finally:
+                self._index_dir = None
+                self._index_name = None
+
+        return result_heaps
+
+
+class MultiVectorModel(PylateSearchEncoder):
+    task_corpus: CorpusDatasetType | None = None
+
+    def __init__(
+        self,
+        model_name: str,
+        revision: str | None = None,
+        model_prompts: dict[str, str] | None = None,
+        index_dir: str | Path | None = None,
+        index_name: str | None = None,
+        index_autodelete: bool = True,
+        index_kwargs: dict[str, Any] | None = None,
+        **kwargs,
+    ) -> None:
+        """Wrapper for MultiVector/ColBERT models (via PyLate)."""
+        requires_package(self, "pylate", model_name, "pip install mteb[pylate]")
+        from pylate.models import ColBERT  # type: ignore[import]
+
+        self.model_name = model_name
+        self.model = ColBERT(self.model_name, revision=revision, **kwargs)
+        built_in_prompts = getattr(self.model, "prompts", None)
+        if built_in_prompts and not model_prompts:
+            self.model_prompts = built_in_prompts
+        elif model_prompts and built_in_prompts:
+            logger.info(f"Model.prompts will be overwritten with {model_prompts}")
+            self.model_prompts = AbsEncoder.validate_task_to_prompt_name(model_prompts)
+        elif model_prompts:
+            self.model_prompts = AbsEncoder.validate_task_to_prompt_name(model_prompts)
+        self.base_index_dir = Path(index_dir) if index_dir else None
+        self._index_name = index_name
+        self._index_autodelete = index_autodelete
+        self.index_kwargs = index_kwargs or {}
+
+    def _encode(
+        self,
+        inputs: DataLoader[BatchedInput],
+        *,
+        task_metadata: TaskMetadata,
+        hf_split: str,
+        hf_subset: str,
+        prompt_type: PromptType | None = None,
+        **kwargs: Unpack[EncodeKwargs],
+    ) -> Array:
+        prompt = get_prompt(self.model_prompts, task_metadata, prompt_type)
+        if prompt:
+            logger.info(
+                f"Using prompt={prompt} for task={task_metadata.name} prompt_type={prompt_type}"
+            )
+        else:
+            logger.info(
+                f"No model prompts found for task={task_metadata.name} prompt_type={prompt_type}"
+            )
+        logger.debug(f"Encoding {len(inputs)} items.")
+
+        inputs = [text for batch in inputs for text in batch["text"]]
+
+        pred = self.model.encode(
+            inputs,
+            prompt=prompt,
+            is_query=prompt_type == PromptType.query,
+            **kwargs,
+        )
+
+        return pred
+
+
+colbert_v2 = ModelMeta(
+    loader=MultiVectorModel,
+    name="colbert-ir/colbertv2.0",
+    model_type=["late-interaction"],
+    languages=["eng-Latn"],
+    open_weights=True,
+    revision="c1e84128e85ef755c096a95bdb06b47793b13acf",
+    public_training_code=None,
+    public_training_data=None,
+    release_date="2024-09-21",
+    n_parameters=109482240,
+    n_embedding_parameters=23_440_896,
+    memory_usage_mb=418,
+    max_tokens=180,
+    embed_dim=None,
+    license="mit",
+    similarity_fn_name=ScoringFunction.MAX_SIM,
+    framework=["PyLate", "ColBERT", "Transformers", "ONNX", "safetensors"],
+    reference="https://huggingface.co/colbert-ir/colbertv2.0",
+    use_instructions=False,
+    adapted_from=None,
+    superseded_by=None,
+    training_datasets={
+        "MSMARCO",
+        "mMARCO-NL",
+    },
+)
+
+jina_colbert_v2 = ModelMeta(
+    loader=MultiVectorModel,
+    loader_kwargs=dict(
+        query_prefix="[QueryMarker]",
+        document_prefix="[DocumentMarker]",
+        attend_to_expansion_tokens=True,
+        trust_remote_code=True,
+    ),
+    name="jinaai/jina-colbert-v2",
+    model_type=["late-interaction"],
+    languages=[
+        "ara-Arab",
+        "ben-Beng",
+        "deu-Latn",
+        "spa-Latn",
+        "eng-Latn",
+        "fas-Arab",
+        "fin-Latn",
+        "fra-Latn",
+        "hin-Deva",
+        "ind-Latn",
+        "jpn-Jpan",
+        "kor-Kore",
+        "rus-Cyrl",
+        "swa-Latn",
+        "tel-Telu",
+        "tha-Thai",
+        "yor-Latn",
+        "zho-Hans",
+        "nld-Latn",
+        "ita-Latn",
+        "por-Latn",
+        "vie-Latn",
+    ],
+    open_weights=True,
+    revision="4cf816e5e2b03167b132a3c847a9ecd48ba708e1",
+    public_training_code=None,
+    public_training_data=None,
+    release_date="2024-08-16",
+    n_parameters=559366144,
+    n_embedding_parameters=256004096,
+    memory_usage_mb=1067,
+    max_tokens=8192,
+    embed_dim=None,
+    license="cc-by-nc-4.0",
+    similarity_fn_name=ScoringFunction.MAX_SIM,
+    framework=["PyLate", "ColBERT", "ONNX", "safetensors"],
+    reference="https://huggingface.co/jinaai/jina-colbert-v2",
+    use_instructions=False,
+    adapted_from=None,
+    superseded_by=None,
+    training_datasets={
+        "MSMARCO",
+        "mMARCO-NL",
+        "DuRetrieval",
+        "MIRACL",
+    },
+    citation="""@inproceedings{xiao-etal-2024-jina,
+    title = "{J}ina-{C}ol{BERT}-v2: A General-Purpose Multilingual Late Interaction Retriever",
+    author = {Jha, Rohan  and
+      Wang, Bo  and
+      G{\"u}nther, Michael  and
+      Mastrapas, Georgios  and
+      Sturua, Saba  and
+      Mohr, Isabelle  and
+      Koukounas, Andreas  and
+      Wang, Mohammad Kalim  and
+      Wang, Nan  and
+      Xiao, Han},
+    editor = {S{\"a}lev{\"a}, Jonne  and
+      Owodunni, Abraham},
+    booktitle = "Proceedings of the Fourth Workshop on Multilingual Representation Learning (MRL 2024)",
+    month = nov,
+    year = "2024",
+    address = "Miami, Florida, USA",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2024.mrl-1.11/",
+    doi = "10.18653/v1/2024.mrl-1.11",
+    pages = "159--166",
+    abstract = "Multi-vector dense models, such as ColBERT, have proven highly effective in information retrieval. ColBERT`s late interaction scoring approximates the joint query-document attention seen in cross-encoders while maintaining inference efficiency closer to traditional dense retrieval models, thanks to its bi-encoder architecture and recent optimizations in indexing and search. In this paper, we introduce a novel architecture and a training framework to support long context window and multilingual retrieval. Leveraging Matryoshka Representation Loss, we further demonstrate that the reducing the embedding dimensionality from 128 to 64 has insignificant impact on the model`s retrieval performance and cut storage requirements by up to 50{\\%}. Our new model, Jina-ColBERT-v2, demonstrates strong performance across a range of English and multilingual retrieval tasks,"
+}""",
+)
+
+
+lightonai__gte_moderncolbert_v1 = ModelMeta(
+    loader=MultiVectorModel,
+    name="lightonai/GTE-ModernColBERT-v1",
+    model_type=["late-interaction"],
+    languages=[
+        "eng-Latn",
+    ],
+    open_weights=True,
+    revision="c1647d10d6edc6f70837f42f0a978f2df53f51dd",
+    public_training_code="https://github.com/lightonai/pylate/blob/main/examples/train/gte_modern_colbert.py",
+    public_training_data="https://huggingface.co/datasets/lightonai/ms-marco-en-bge-gemma",
+    release_date="2025-04-30",
+    n_parameters=149015808,
+    n_embedding_parameters=38684160,
+    memory_usage_mb=568,
+    max_tokens=8192,
+    embed_dim=128,
+    license="apache-2.0",
+    similarity_fn_name="MaxSim",
+    framework=["PyLate", "ColBERT", "safetensors", "Sentence Transformers"],
+    reference="https://huggingface.co/lightonai/GTE-ModernColBERT-v1",
+    use_instructions=False,
+    adapted_from="Alibaba-NLP/gte-modernbert-base",
+    superseded_by=None,
+    training_datasets={
+        "MSMARCO",
+        "MSMARCOHardNegatives",
+        "NanoMSMARCORetrieval",
+        "NQ",
+        "NQHardNegatives",
+        "NanoNQRetrieval",
+        "HotpotQA",
+        "HotpotQAHardNegatives",
+        "CodeSearchNet",
+        "FEVER",
+        "DBPedia",
+        "DBPediaHardNegatives.v2",
+        "NanoDBPediaRetrieval",
+        "TRECDL2019",
+        "TRECDL2020",
+        "CornStack",
+    },
+    citation="""@misc{GTE-ModernColBERT,
+    title={GTE-ModernColBERT},
+    author={Chaffin, Antoine},
+    url={https://huggingface.co/lightonai/GTE-ModernColBERT-v1},
+    year={2025}
+}""",
+)
+
+late_on_code_citation = """@misc{LateOn-Code,
+  title  = {LateOn-Code: a Family of State-Of-The-Art Late Interaction Code Retrieval Models},
+  author = {Chaffin, Antoine},
+  url    = {https://huggingface.co/collections/lightonai/lateon-code},
+  year   = {2026}
+}"""
+
+lightonai__late_on_code_pretrain = ModelMeta(
+    loader=MultiVectorModel,
+    name="lightonai/LateOn-Code-pretrain",
+    model_type=["late-interaction"],
+    languages=[
+        "eng-Latn",
+        "python-Code",
+        "go-Code",
+        "java-Code",
+        "javascript-Code",
+        "ruby-Code",
+        "php-Code",
+    ],
+    open_weights=True,
+    revision="71251a6ee61eee488de7e3ae29f5fb4c3c94699b",
+    public_training_code="https://github.com/lightonai/pylate/blob/main/examples/train/lateon_code/pre-training.py",
+    public_training_data="https://huggingface.co/datasets/lightonai/cornstack",
+    release_date="2026-02-12",
+    n_parameters=149015808,
+    n_embedding_parameters=38684160,
+    memory_usage_mb=568,
+    max_tokens=8192,
+    embed_dim=128,
+    license="apache-2.0",
+    similarity_fn_name="MaxSim",
+    framework=["PyLate", "ColBERT", "safetensors", "Sentence Transformers"],
+    reference="https://huggingface.co/lightonai/LateOn-Code-pretrain",
+    use_instructions=False,
+    superseded_by=None,
+    training_datasets={
+        "MSMARCO",
+        "MSMARCOHardNegatives",
+        "NanoMSMARCORetrieval",
+        "NQ",
+        "NQHardNegatives",
+        "NanoNQRetrieval",
+        "HotpotQA",
+        "HotpotQAHardNegatives",
+        "CodeSearchNet",
+        "FEVER",
+        "DBPedia",
+        "DBPediaHardNegatives.v2",
+        "NanoDBPediaRetrieval",
+        "TRECDL2019",
+        "TRECDL2020",
+        "CornStack",
+    },
+    citation=late_on_code_citation,
+)
+
+
+lightonai__late_on_code = ModelMeta(
+    loader=MultiVectorModel,
+    name="lightonai/LateOn-Code",
+    model_type=["late-interaction"],
+    languages=[
+        "eng-Latn",
+        "python-Code",
+        "go-Code",
+        "java-Code",
+        "javascript-Code",
+        "ruby-Code",
+        "php-Code",
+    ],
+    open_weights=True,
+    revision="734b659a57935ef50562d79581c3ff1f8d825c93",
+    public_training_code="https://github.com/lightonai/pylate/blob/main/examples/train/lateon_code/fine_tuning.py",
+    public_training_data="https://huggingface.co/datasets/lightonai/nv-embed-supervised-distill-dedup-code",
+    release_date="2026-02-12",
+    n_parameters=149015808,
+    n_embedding_parameters=38684160,
+    memory_usage_mb=568,
+    max_tokens=8192,
+    embed_dim=128,
+    license="apache-2.0",
+    similarity_fn_name="MaxSim",
+    framework=["PyLate", "ColBERT", "safetensors", "Sentence Transformers"],
+    reference="https://huggingface.co/lightonai/LateOn-Code",
+    use_instructions=False,
+    adapted_from="lightonai/LateOn-Code-pretrain",
+    superseded_by=None,
+    training_datasets={
+        "MSMARCO",
+        "mMARCO-NL",
+        "CornStack",
+        "AppsRetrieval",
+        "SyntheticText2SQL",
+        "CosQA",
+        "CodeFeedbackMT",
+        "CodeFeedbackST",
+        "StackOverflowQA",
+        "CodeTransOceanContest",
+        "CodeTransOceanDL",
+        "CodeSearchNetRetrieval",
+        "CodeSearchNetCCRetrieval",
+        "COIRCodeSearchNetRetrieval",
+        "AppsRetrieval",
+        "SyntheticText2SQL",
+        "CosQA",
+        "CodeFeedbackMT",
+        "CodeFeedbackST",
+        "StackOverflowQA",
+        "CodeTransOceanContest",
+        "CodeTransOceanDL",
+        "CodeSearchNetRetrieval",
+        "CodeSearchNetCCRetrieval",
+        "COIRCodeSearchNetRetrieval",
+    },
+    citation=late_on_code_citation,
+)
+
+lightonai__late_on_code_edge_pretrain = ModelMeta(
+    loader=MultiVectorModel,
+    name="lightonai/LateOn-Code-edge-pretrain",
+    model_type=["late-interaction"],
+    languages=[
+        "eng-Latn",
+        "python-Code",
+        "go-Code",
+        "java-Code",
+        "javascript-Code",
+        "ruby-Code",
+        "php-Code",
+    ],
+    open_weights=True,
+    revision="4ca3a44b3093e72d48461aa6a67cfd5c0025c007",
+    public_training_code="https://github.com/lightonai/pylate/blob/main/examples/train/lateon_code/pre-training.py",
+    public_training_data="https://huggingface.co/datasets/lightonai/cornstack",
+    release_date="2026-02-12",
+    n_parameters=16797952,
+    n_embedding_parameters=12894720,
+    memory_usage_mb=64,
+    max_tokens=7999,
+    embed_dim=48,
+    license="apache-2.0",
+    similarity_fn_name="MaxSim",
+    framework=["PyLate", "ColBERT", "safetensors", "Sentence Transformers"],
+    reference="https://huggingface.co/lightonai/LateOn-Code-edge-pretrain",
+    use_instructions=False,
+    adapted_from="mixedbread-ai/mxbai-edge-colbert-v0-17m",
+    superseded_by=None,
+    training_datasets={
+        "MSMARCO",
+        "NQ",
+        "HotpotQA",
+        "AmazonQA",
+        "LoTTE",
+        "MultiLongDocRetrieval",
+        "CornStack",
+    },
+    citation=late_on_code_citation,
+)
+
+
+lightonai__late_on_code_edge = ModelMeta(
+    loader=MultiVectorModel,
+    name="lightonai/LateOn-Code-edge",
+    model_type=["late-interaction"],
+    languages=[
+        "eng-Latn",
+        "python-Code",
+        "go-Code",
+        "java-Code",
+        "javascript-Code",
+        "ruby-Code",
+        "php-Code",
+    ],
+    open_weights=True,
+    revision="07ef20f406c86badca122464808f4cac2f6e4b25",
+    public_training_code="https://github.com/lightonai/pylate/blob/main/examples/train/lateon_code/fine_tuning.py",
+    public_training_data="https://huggingface.co/datasets/lightonai/nv-embed-supervised-distill-dedup-code",
+    release_date="2026-02-12",
+    n_parameters=16797952,
+    n_embedding_parameters=12894720,
+    memory_usage_mb=64,
+    max_tokens=7999,
+    embed_dim=48,
+    license="apache-2.0",
+    similarity_fn_name="MaxSim",
+    framework=["PyLate", "ColBERT", "safetensors", "Sentence Transformers"],
+    reference="https://huggingface.co/lightonai/LateOn-Code-edge",
+    use_instructions=False,
+    adapted_from="lightonai/LateOn-Code-edge-pretrain",
+    superseded_by=None,
+    training_datasets={
+        "MSMARCO",
+        "NQ",
+        "HotpotQA",
+        "AmazonQA",
+        "LoTTE",
+        "MultiLongDocRetrieval",
+        "CornStack",
+        "AppsRetrieval",
+        "SyntheticText2SQL",
+        "CosQA",
+        "CodeFeedbackMT",
+        "CodeFeedbackST",
+        "StackOverflowQA",
+        "CodeTransOceanContest",
+        "CodeTransOceanDL",
+        "CodeSearchNetRetrieval",
+        "CodeSearchNetCCRetrieval",
+        "COIRCodeSearchNetRetrieval",
+    },
+    citation=late_on_code_citation,
+)
+
+
+nomic_embed_unsupervised_data = {
+    "QuoraRetrieval",
+    "CodeSearchNetCCRetrieval",
+    "CodeSearchNetRetrieval",
+    "COIRCodeSearchNetRetrieval",
+}
+nomic_embed_supervised_data = {
+    "FEVER",
+    "FEVERHardNegatives.v2",
+    "NanoFEVERRetrieval",
+    "MSMARCO",
+    "MSMARCOv2",
+    "MSMARCOHardNegatives",
+    "NanoMSMARCORetrieval",
+    "NQ",
+    "NQHardNegatives",
+    "NanoNQRetrieval",
+    "HotpotQA",
+    "HotpotQAHardNegatives.v2",
+    "NanoHotpotQARetrieval",
+}
+colbert_zero_citation = """@misc{chaffin2026colbertzeropretrainpretraincolbert,
+  title         = {ColBERT-Zero: To Pre-train Or Not To Pre-train ColBERT models}, 
+  author        = {Antoine Chaffin and Luca Arnaboldi and Amélie Chatelain and Florent Krzakala},
+  year          = {2026},
+  eprint        = {2602.16609},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.CL},
+  url           = {https://arxiv.org/abs/2602.16609}, 
+}"""
+lightonai__colbert_zero_unsupervised = ModelMeta(
+    loader=MultiVectorModel,
+    name="lightonai/ColBERT-Zero-unsupervised",
+    model_type=["late-interaction"],
+    languages=[
+        "eng-Latn",
+    ],
+    open_weights=True,
+    revision="d5f1d1e4d7ddb9aa22ce0d8f57f0cd361f39ac77",
+    public_training_code="https://github.com/lightonai/pylate/blob/main/examples/train/ColBERT-zero/unsupervised.py",
+    public_training_data="https://huggingface.co/datasets/nomic-ai/nomic-embed-unsupervised-data",
+    release_date="2026-02-19",
+    n_parameters=149015808,
+    n_embedding_parameters=38684160,
+    memory_usage_mb=568,
+    max_tokens=8192,
+    embed_dim=128,
+    license="apache-2.0",
+    similarity_fn_name="MaxSim",
+    framework=["PyLate", "ColBERT", "safetensors", "Sentence Transformers"],
+    reference="https://huggingface.co/lightonai/ColBERT-Zero-unsupervised",
+    use_instructions=False,
+    adapted_from="answerdotai/ModernBERT-base",
+    superseded_by=None,
+    training_datasets=nomic_embed_unsupervised_data,
+    citation=colbert_zero_citation,
+)
+
+
+lightonai__colbert_zero_supervised = ModelMeta(
+    loader=MultiVectorModel,
+    name="lightonai/ColBERT-Zero-supervised",
+    model_type=["late-interaction"],
+    languages=[
+        "eng-Latn",
+    ],
+    open_weights=True,
+    revision="9340f7e825b4d37fdf2c6e950c1a928fe24d770b",
+    public_training_code="https://github.com/lightonai/pylate/blob/main/examples/train/ColBERT-zero/supervised.py",
+    public_training_data="https://huggingface.co/datasets/nomic-ai/nomic-embed-supervised",
+    release_date="2026-02-19",
+    n_parameters=149015808,
+    n_embedding_parameters=38684160,
+    memory_usage_mb=568,
+    max_tokens=8192,
+    embed_dim=128,
+    license="apache-2.0",
+    similarity_fn_name="MaxSim",
+    framework=["PyLate", "ColBERT", "safetensors", "Sentence Transformers"],
+    reference="https://huggingface.co/lightonai/ColBERT-Zero-supervised",
+    use_instructions=False,
+    adapted_from="lightonai/ColBERT-Zero-unsupervised",
+    superseded_by=None,
+    training_datasets=nomic_embed_unsupervised_data | nomic_embed_supervised_data,
+    citation=colbert_zero_citation,
+)
+
+lightonai__colbert_zero = ModelMeta(
+    loader=MultiVectorModel,
+    name="lightonai/ColBERT-Zero",
+    model_type=["late-interaction"],
+    languages=[
+        "eng-Latn",
+    ],
+    open_weights=True,
+    revision="5a1f22f2be589f17654d1ed455b635b70d4aff21",
+    public_training_code="https://github.com/lightonai/pylate/blob/main/examples/train/ColBERT-zero/distillation.py",
+    public_training_data="lightonai/ms-marco-en-bge-gemma",
+    release_date="2026-02-19",
+    n_parameters=149015808,
+    n_embedding_parameters=38684160,
+    memory_usage_mb=568,
+    max_tokens=8192,
+    embed_dim=128,
+    license="apache-2.0",
+    similarity_fn_name="MaxSim",
+    framework=["PyLate", "ColBERT", "safetensors", "Sentence Transformers"],
+    reference="https://huggingface.co/lightonai/ColBERT-Zero",
+    use_instructions=False,
+    adapted_from="lightonai/ColBERT-Zero-supervised",
+    superseded_by=None,
+    training_datasets=nomic_embed_unsupervised_data | nomic_embed_supervised_data,
+    citation=colbert_zero_citation,
+)
+
+lightonai__reason_moderncolbert = ModelMeta(
+    loader=MultiVectorModel,
+    name="lightonai/Reason-ModernColBERT",
+    model_type=["late-interaction"],
+    languages=[
+        "eng-Latn",
+    ],
+    open_weights=True,
+    revision="a1f75a3d01084caf9d4cea3500a498533352f001",
+    public_training_code="https://github.com/lightonai/pylate/blob/main/examples/train/reason_moderncolbert.py",
+    public_training_data="https://huggingface.co/datasets/reasonir/reasonir-data",
+    release_date="2025-05-22",
+    n_parameters=149015808,
+    n_embedding_parameters=38684160,
+    memory_usage_mb=568,
+    max_tokens=8192,
+    embed_dim=128,
+    license="cc-by-nc-4.0",
+    similarity_fn_name="MaxSim",
+    framework=["PyLate", "ColBERT", "safetensors", "Sentence Transformers"],
+    reference="https://huggingface.co/lightonai/Reason-ModernColBERT",
+    use_instructions=False,
+    adapted_from="lightonai/GTE-ModernColBERT-v1",
+    superseded_by=None,
+    training_datasets={
+        "MSMARCO",
+        "MSMARCOHardNegatives",
+        "NanoMSMARCORetrieval",
+        "NQ",
+        "NQHardNegatives",
+        "NanoNQRetrieval",
+        "HotpotQA",
+        "HotpotQAHardNegatives",
+        "CodeSearchNet",
+        "FEVER",
+        "DBPedia",
+        "DBPediaHardNegatives.v2",
+        "NanoDBPediaRetrieval",
+        "TRECDL2019",
+        "TRECDL2020",
+        "CornStack",
+    },
+    citation="""@misc{Reason-ModernColBERT,
+title={Reason-ModernColBERT},
+author={Chaffin, Antoine},
+url={https://huggingface.co/lightonai/Reason-ModernColBERT},
+year={2025}
+}""",
+)

@@ -1,0 +1,61 @@
+fail_fast: true
+
+repos:
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.23
+    hooks:
+      - id: validate-pyproject
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+    -   id: check-yaml
+    -   id: check-json
+    -   id: pretty-format-json
+        args:
+          - "--autofix"
+          - "--indent=4"
+          - "--no-sort-keys"
+    -   id: end-of-file-fixer # generated a lot of changes
+    -   id: trailing-whitespace
+    -   id: check-toml
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.38.1
+    hooks:
+    - id: typos
+      args: ["--diff"]
+
+  - repo: local
+    hooks:
+      - id: lint
+        name: lint
+        description: "Run 'make lint'"
+        entry: make lint
+        language: python
+        types_or: [python]
+        minimum_pre_commit_version: "2.9.2"
+        additional_dependencies:
+          - typos
+          - "ruff==0.14.0"
+      - id: format-benchmarks-citations
+        name: format-benchmarks-citations
+        description: "Format benchmarks citations"
+        entry: python scripts/format_citations.py benchmarks --error-on-change
+        language: python
+        files: 'mteb/benchmarks/'
+        pass_filenames: false
+        types_or: [ python ]
+        minimum_pre_commit_version: "2.9.2"
+        additional_dependencies:
+          - bibtexparser
+      - id: format-tasks-citations
+        name: format-tasks-citations
+        description: "Format tasks citations"
+        entry: python scripts/format_citations.py tasks --error-on-change
+        language: python
+        files: 'mteb/tasks/'
+        pass_filenames: false
+        types_or: [ python ]
+        minimum_pre_commit_version: "2.9.2"
+        additional_dependencies:
+          - bibtexparser

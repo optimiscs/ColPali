@@ -1,0 +1,57 @@
+config:
+  (): colpali_engine.trainer.colmodel_training.ColModelTrainingConfig
+  output_dir: !path ./outputs/colqwen2-2gpu-test
+  processor:
+    (): colpali_engine.utils.transformers_wrappers.AllPurposeWrapper
+    class_to_instanciate: !ext colpali_engine.models.ColQwen2Processor
+    pretrained_model_name_or_path: "vidore/colqwen2-v1.0"
+    max_num_visual_tokens: 768
+
+  model:
+    (): colpali_engine.utils.transformers_wrappers.AllPurposeWrapper
+    class_to_instanciate: !ext colpali_engine.models.ColQwen2
+    pretrained_model_name_or_path: "vidore/colqwen2-v1.0"
+    torch_dtype: !ext torch.bfloat16
+    use_cache: false
+    attn_implementation: "sdpa"
+
+  train_dataset:
+    (): colpali_engine.utils.dataset_transformation.load_train_set
+  eval_dataset: null
+
+  run_eval: false
+  loss_func:
+    (): colpali_engine.loss.late_interaction_losses.ColbertLoss
+    temperature: 0.02
+    normalize_scores: true
+    use_smooth_max: false
+
+  tr_args:
+    (): transformers.training_args.TrainingArguments
+    output_dir: null
+    overwrite_output_dir: true
+    num_train_epochs: 3
+    per_device_train_batch_size: 4
+    gradient_accumulation_steps: 32
+    gradient_checkpointing: true
+    gradient_checkpointing_kwargs: { "use_reentrant": false }
+    per_device_eval_batch_size: 8
+    eval_strategy: "no"
+    dataloader_num_workers: 4
+    save_steps: 100
+    logging_steps: 10
+    warmup_steps: 100
+    learning_rate: 2e-4
+    save_total_limit: 2
+    report_to: "none"
+    bf16: true
+
+  peft_config:
+    (): peft.LoraConfig
+    r: 32
+    lora_alpha: 32
+    lora_dropout: 0.1
+    init_lora_weights: "gaussian"
+    bias: "none"
+    task_type: "FEATURE_EXTRACTION"
+    target_modules: '(.*(model).*(down_proj|gate_proj|up_proj|k_proj|q_proj|v_proj|o_proj).*$|.*(custom_text_proj).*$)'

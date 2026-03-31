@@ -1,0 +1,370 @@
+import pytest
+
+import mteb
+from mteb.models.model_meta import ModelMeta
+
+# Historic models with n_embedding_parameters=None. Do NOT add new models to this list.
+_MISSING_N_EMBEDDING_MODELS = [
+    "ApsaraStackMaaS/EvoQwen2.5-VL-Retriever-3B-v1",
+    "ApsaraStackMaaS/EvoQwen2.5-VL-Retriever-7B-v1",
+    "BAAI/bge-visualized-base",
+    "BAAI/bge-visualized-m3",
+    "ByteDance/ListConRanker",
+    "Bytedance/Seed1.6-embedding",
+    "GritLM/GritLM-8x7B",
+    "NovaSearch/stella_en_400M_v5",
+    "QuanSun/EVA02-CLIP-B-16",
+    "QuanSun/EVA02-CLIP-L-14",
+    "QuanSun/EVA02-CLIP-bigE-14",
+    "QuanSun/EVA02-CLIP-bigE-14-plus",
+    "Salesforce/SFR-Embedding-Code-2B_R",
+    "Snowflake/snowflake-arctic-embed-m-long",
+    "TencentBAC/Conan-embedding-v2",
+    "TomoroAI/tomoro-colqwen3-embed-4b",
+    "TomoroAI/tomoro-colqwen3-embed-8b",
+    "ai-sage/Giga-Embeddings-instruct",
+    "mteb/baseline-bb25",
+    "mteb/baseline-bm25s",
+    "consciousAI/cai-stellaris-text-embeddings",
+    "deepvk/USER2-base",
+    "deepvk/USER2-small",
+    "facebook/SONAR",
+    "jinaai/jina-clip-v1",
+    "jinaai/jina-reranker-v2-base-multilingual",
+    "jxm/cde-small-v1",
+    "jxm/cde-small-v2",
+    "laion/CLIP-ViT-B-16-DataComp.XL-s13B-b90K",
+    "laion/CLIP-ViT-B-32-DataComp.XL-s13B-b90K",
+    "laion/CLIP-ViT-g-14-laion2B-s34B-b88K",
+    "malenia1/ternary-weight-embedding",
+    "microsoft/LLM2CLIP-Openai-B-16",
+    "microsoft/LLM2CLIP-Openai-L-14-224",
+    "microsoft/LLM2CLIP-Openai-L-14-336",
+    "nomic-ai/colnomic-embed-multimodal-3b",
+    "nomic-ai/colnomic-embed-multimodal-7b",
+    "nomic-ai/nomic-embed-text-v1",
+    "nomic-ai/nomic-embed-text-v1-ablated",
+    "nomic-ai/nomic-embed-text-v1-unsupervised",
+    "nomic-ai/nomic-embed-text-v1.5",
+    "nomic-ai/nomic-embed-vision-v1.5",
+    "nyu-visionx/moco-v3-vit-b",
+    "nyu-visionx/moco-v3-vit-l",
+    "samaya-ai/promptriever-llama2-7b-v1",
+    "samaya-ai/promptriever-llama3.1-8b-instruct-v1",
+    "samaya-ai/promptriever-llama3.1-8b-v1",
+    "vidore/colSmol-256M",
+    "vidore/colSmol-500M",
+    "vidore/colpali-v1.1",
+    "vidore/colpali-v1.2",
+    "vidore/colpali-v1.3",
+    "vidore/colqwen2-v1.0",
+    "vidore/colqwen2.5-v0.2",
+    "voyageai/voyage-multimodal-3",
+    "OrlikB/KartonBERT-USE-base-v1",
+    "OrlikB/st-polish-kartonberta-base-alpha-v1",
+    "jinaai/jina-clip-v2",
+    "baseline/Human",
+    "mteb/baseline-random-cross-encoder",
+    "mteb/baseline-random-encoder",
+    "VAGOsolutions/SauerkrautLM-ColLFM2-450M-v0.1",
+    "MCINext/Hakim",
+    "MCINext/Hakim-small",
+    "MCINext/Hakim-unsup",
+    # audio models
+    "laion/larger_clap_general",
+    "laion/larger_clap_music",
+    "laion/larger_clap_music_and_speech",
+    "lyrebird/wav2clip",
+    "microsoft/msclap-2022",
+    "microsoft/msclap-2023",
+    "Qwen/Qwen2-Audio-7B",
+    "mteb/baseline-random-cross-encoder",
+    "mteb/baseline-random-encoder",
+    "OpenMuQ/MuQ-MuLan-large",
+    "microsoft/speecht5_asr",
+    "microsoft/speecht5_tts",
+    "microsoft/speecht5_multimodal",
+]
+
+
+@pytest.mark.parametrize(
+    "training_datasets",
+    [
+        {"Touche2020"},  # parent task
+        {"Touche2020-NL"},  # child task
+    ],
+)
+def test_model_similar_tasks(training_datasets):
+    dummy_model_meta = ModelMeta(
+        name="test/test_model",
+        revision="test",
+        release_date=None,
+        languages=None,
+        loader=None,
+        n_parameters=None,
+        memory_usage_mb=None,
+        max_tokens=None,
+        embed_dim=None,
+        license=None,
+        open_weights=None,
+        public_training_code=None,
+        public_training_data=None,
+        framework=[],
+        reference=None,
+        similarity_fn_name=None,
+        use_instructions=None,
+        training_datasets=training_datasets,
+        adapted_from=None,
+        superseded_by=None,
+    )
+    expected = sorted(
+        [
+            "NanoTouche2020Retrieval",
+            "Touche2020",
+            "Touche2020-Fa",
+            "Touche2020-Fa.v2",
+            "Touche2020-NL",
+            "Touche2020-VN",
+            "Touche2020-PL",
+            "Touche2020Retrieval.v3",
+        ]
+    )
+    assert sorted(dummy_model_meta.get_training_datasets()) == expected
+
+
+def test_similar_tasks_superseded_by():
+    """Banking77Classification in model training data, but Banking77Classification.v2 version not"""
+    model_meta = mteb.get_model_meta("BAAI/bge-multilingual-gemma2")
+    assert "Banking77Classification.v2" in model_meta.get_training_datasets()
+
+
+def test_model_name_without_prefix():
+    with pytest.raises(ValueError):
+        ModelMeta(
+            name="test_model",
+            revision="test",
+            release_date=None,
+            languages=None,
+            loader=None,
+            n_parameters=None,
+            memory_usage_mb=None,
+            max_tokens=None,
+            embed_dim=None,
+            license=None,
+            open_weights=None,
+            public_training_code=None,
+            public_training_data=None,
+            framework=[],
+            reference=None,
+            similarity_fn_name=None,
+            use_instructions=None,
+            training_datasets=None,
+            adapted_from=None,
+            superseded_by=None,
+        )
+
+
+def test_model_training_dataset_adapted():
+    model_meta = mteb.get_model_meta("deepvk/USER-bge-m3")
+    assert model_meta.adapted_from == "BAAI/bge-m3"
+    # MIRACLRetrieval not in training_datasets of deepvk/USER-bge-m3, but in
+    # training_datasets of BAAI/bge-m3
+    assert "MIRACLRetrieval" in model_meta.get_training_datasets()
+
+
+@pytest.mark.parametrize(
+    ("model_name", "expected_memory"),
+    [
+        ("intfloat/e5-mistral-7b-instruct", 13563),  # multiple safetensors
+        ("NovaSearch/jasper_en_vision_language_v1", 3802),  # bf16
+        ("intfloat/multilingual-e5-small", 449),  # safetensors
+        ("BAAI/bge-m3", 2167),  # pytorch_model.bin
+    ],
+)
+def test_model_memory_usage(model_name: str, expected_memory: int | None):
+    meta = mteb.get_model_meta(model_name)
+    assert meta.memory_usage_mb is not None
+    used_memory = round(meta.memory_usage_mb)
+    assert used_memory == expected_memory
+
+
+def test_model_memory_usage_api_model():
+    meta = mteb.get_model_meta("openai/text-embedding-3-large")
+    assert meta.memory_usage_mb is None
+
+
+@pytest.mark.parametrize("model_meta", mteb.get_model_metas())
+def test_check_model_name_and_revision(model_meta: ModelMeta):
+    assert model_meta.name is not None
+    assert model_meta.revision is not None
+
+
+@pytest.mark.parametrize("model_meta", mteb.get_model_metas())
+def test_check_training_datasets_can_be_derived(model_meta: ModelMeta):
+    # E.g. if a model if adapted_from is set to the model itself, this would cause infinite recursion. This ensures that this attribute can be called
+    # without issues.
+    # https://github.com/embeddings-benchmark/mteb/pull/3565
+    assert model_meta.name != model_meta.adapted_from, (
+        f"Model name and adapter model should be different. Got {model_meta.name} and {model_meta.adapted_from}"
+    )
+    model_meta.get_training_datasets()
+
+
+@pytest.mark.parametrize("model_type", ["dense", "cross-encoder", "late-interaction"])
+def test_get_model_metas_each_model_type(model_type):
+    """Test filtering by each individual model type."""
+    models = mteb.get_model_metas(model_types=[model_type])
+
+    for model in models:
+        assert model_type in model.model_type
+
+
+def test_loader_kwargs_persisted_in_metadata():
+    model = mteb.get_model(
+        "mteb/baseline-random-encoder",
+        not_existing_param=123,
+    )
+
+    assert hasattr(model, "mteb_model_meta")
+    meta = model.mteb_model_meta
+
+    assert "not_existing_param" in meta.loader_kwargs
+    assert meta.loader_kwargs["not_existing_param"] == 123
+
+
+def test_get_model_kwargs_does_not_mutate_registry_meta():
+    model_name = "mteb/baseline-random-encoder"
+
+    model = mteb.get_model(model_name, not_existing_param=123)
+    assert model.mteb_model_meta.experiment_kwargs == {"not_existing_param": 123}
+
+    current_registry_meta = mteb.get_model_meta(model_name)
+    assert current_registry_meta.experiment_kwargs is None
+
+
+def test_fill_missing_parameter():
+    """Test that fill_missing parameter fetches missing metadata from HuggingFace Hub"""
+    model_name = "sentence-transformers/all-MiniLM-L6-v2"
+    meta_with_compute = mteb.get_model_meta(model_name, fill_missing=True)
+
+    assert meta_with_compute.n_parameters is not None
+    assert meta_with_compute.memory_usage_mb is not None
+
+
+@pytest.mark.parametrize(
+    "model_meta",
+    [m for m in mteb.get_model_metas(open_weights=True) if "text" in m.modalities],
+)
+def test_n_embedding_parameters(model_meta: ModelMeta):
+    """
+    Test that tracks models with n_embedding_parameters=None.
+    Historic models (in _HISTORIC_MODELS) are allowed to have None values.
+    New models must have n_embedding_parameters defined, otherwise the test fails.
+    """
+    if model_meta.name in _MISSING_N_EMBEDDING_MODELS:
+        assert model_meta.n_embedding_parameters is None
+    else:
+        assert model_meta.n_embedding_parameters is not None, (
+            f"New model '{model_meta.name}' must have n_embedding_parameters defined. "
+            f"If this is a historic model, add it to _HISTORIC_MODELS in test_model_meta.py"
+        )
+
+
+def test_model_to_python():
+    meta = mteb.get_model_meta("sentence-transformers/all-MiniLM-L6-v2")
+    assert meta.to_python() == (
+        """ModelMeta(
+    loader=SentenceTransformerEncoderWrapper,
+    loader_kwargs={},
+    name='sentence-transformers/all-MiniLM-L6-v2',
+    revision='8b3219a92973c328a8e22fadcfa821b5dc75636a',
+    release_date='2021-08-30',
+    languages=['eng-Latn'],
+    n_parameters=22713216,
+    n_active_parameters_override=None,
+    n_embedding_parameters=11720448,
+    memory_usage_mb=87.0,
+    max_tokens=256.0,
+    embed_dim=384,
+    license='apache-2.0',
+    open_weights=True,
+    public_training_code=None,
+    public_training_data=None,
+    framework=['Sentence Transformers', 'PyTorch', 'ONNX', 'safetensors', 'Transformers'],
+    reference='https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2',
+    similarity_fn_name=ScoringFunction.COSINE,
+    use_instructions=False,
+    training_datasets={'MSMARCO', 'MSMARCO-PL', 'MSMARCOHardNegatives', 'NQ', 'NQ-NL', 'NQ-PL', 'NQHardNegatives', 'NanoMSMARCORetrieval', 'NanoNQRetrieval', 'mMARCO-NL'},
+    adapted_from=None,
+    superseded_by=None,
+    modalities=['text'],
+    model_type=['dense'],
+    citation='@inproceedings{reimers-2019-sentence-bert,\\n    title = "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks",\\n    author = "Reimers, Nils and Gurevych, Iryna",\\n    booktitle = "Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing",\\n    month = "11",\\n    year = "2019",\\n    publisher = "Association for Computational Linguistics",\\n    url = "http://arxiv.org/abs/1908.10084",\\n}\\n',
+    contacts=None,
+)"""
+    )
+
+
+def test_model_meta_local_path():
+    meta = ModelMeta.from_hub("/path/to/local/model")
+    assert meta.name == "/path/to/local/model"
+    assert meta.revision == "no_revision_available"
+
+
+def test_load_cross_encoder_via_get_model_meta():
+    """Test loading cross-encoder via get_model_meta() with automatic detection."""
+    model_meta = mteb.get_model_meta("cross-encoder/ms-marco-TinyBERT-L2-v2")
+
+    assert model_meta.model_type == ["cross-encoder"]
+    assert model_meta.is_cross_encoder
+    assert model_meta.loader.__name__ == "CrossEncoderWrapper"
+
+
+def test_load_sentence_transformer_via_get_model_meta():
+    """Test loading sentence transformer via get_model_meta()."""
+    model_meta = mteb.get_model_meta("sentence-transformers/all-MiniLM-L6-v2")
+
+    assert model_meta.model_type == ["dense"]
+    assert not model_meta.is_cross_encoder
+    assert model_meta.loader.__name__ == "SentenceTransformerEncoderWrapper"
+
+
+def test_load_model_with_experiments():
+    model_name = "mteb/baseline-random-encoder"
+
+    model1 = mteb.get_model(model_name, param=1)
+    model_meta = mteb.get_model_meta(model_name, experiment_kwargs={"param": 1})
+
+    assert model_meta.experiment_name == model1.mteb_model_meta.experiment_name
+
+    # test that experiment params are correctly passed from meta to model
+    model2 = mteb.get_model(model_name, param=2, other_param="value")
+    model_meta2 = mteb.get_model_meta(model_name, experiment_kwargs={"param": 2})
+    model_from_meta2 = model_meta2.load_model(other_param="value")
+    assert (
+        model2.mteb_model_meta.experiment_name
+        == model_from_meta2.mteb_model_meta.experiment_name
+    )
+
+
+def test_get_model_metas_modalities_subset():
+    models = mteb.get_model_metas(modalities=["text"])
+
+    assert len(models) > 0
+    for model in models:
+        assert "text" in model.modalities
+
+
+def test_get_model_metas_modalities_exact():
+    models = mteb.get_model_metas(modalities=["text"], exclusive_modality_filter=True)
+
+    assert len(models) > 0
+    for model in models:
+        assert set(model.modalities) == {"text"}
+
+
+def test_get_model_metas_without_modality_filter_returns_more_models():
+    all_models = mteb.get_model_metas()
+    text_models = mteb.get_model_metas(modalities=["text"])
+
+    assert len(all_models) > len(text_models)
