@@ -48,7 +48,7 @@ class ColQwen3VLEmbedding(Qwen3VLModel):
 
         # Qwen3-VL-Embedding-2B has hidden_size=2048 (not 4096 like standard Qwen3)
         # dim=768 for ColBERT late interaction
-        self.dim = 2048
+        self.dim = 768
         self.custom_text_proj = nn.Linear(hidden_size, self.dim)
         self.padding_side = "left"
         self.mask_non_image_embeddings = mask_non_image_embeddings
@@ -80,6 +80,11 @@ class ColQwen3VLEmbedding(Qwen3VLModel):
         return model
 
     def forward(self, *args, **kwargs) -> torch.Tensor:
+        # For text-only inputs (no pixel_values), reset rope_deltas to avoid dimension mismatch
+        # This can happen when model is used for both text (query) and image (doc) forward passes
+        if "pixel_values" not in kwargs and hasattr(self, "rope_deltas") and self.rope_deltas is not None:
+            self.rope_deltas = None
+
         # Handle the custom "pixel_values" input obtained with `ColQwen3VLEmbeddingProcessor` through unpadding
         if "pixel_values" in kwargs:
             offsets = kwargs["image_grid_thw"][:, 1] * kwargs["image_grid_thw"][:, 2]  # (batch_size,)

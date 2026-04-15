@@ -1,0 +1,226 @@
+{
+  "low_contribution_cases": [],
+  "ranking_failures": [
+    {
+      "query_id": "query-test-597",
+      "query_text": "Explain how the Schr\u00f6dinger equation, the Klein-Gordon equation, and the Dirac equation relate to each other in order to overcome the limitations of the initial theories and establish quantum field th",
+      "num_query_tokens": 53,
+      "predicted_doc": "corpus-test-104",
+      "predicted_score": 35.666343688964844,
+      "relevant_docs": [
+        "corpus-test-1654",
+        "corpus-test-1669",
+        "corpus-test-1672",
+        "corpus-test-1664",
+        "corpus-test-1645",
+        "corpus-test-1670",
+        "corpus-test-1646",
+        "corpus-test-1656",
+        "corpus-test-1659",
+        "corpus-test-1661",
+        "corpus-test-1649",
+        "corpus-test-1648",
+        "corpus-test-1673"
+      ],
+      "top_contrib_indices": [
+        0,
+        18,
+        11,
+        7,
+        5
+      ],
+      "bottom_contrib_indices": [
+        52,
+        26,
+        23,
+        28,
+        33
+      ],
+      "top_contrib_values": [
+        0.02785215526819229,
+        0.024852512404322624,
+        0.02481842041015625,
+        0.024100245907902718,
+        0.02395807020366192
+      ],
+      "bottom_contrib_values": [
+        0.0,
+        0.008087918162345886,
+        0.011105068027973175,
+        0.011723487637937069,
+        0.012862535193562508
+      ]
+    },
+    {
+      "query_id": "query-test-324",
+      "query_text": "Compare the molecular cohesion mechanisms through covalent bonds and van der Waals forces by analyzing their electrostatic origin, their energy intensity, and their role in condensed states.",
+      "num_query_tokens": 53,
+      "predicted_doc": "corpus-test-886",
+      "predicted_score": 30.385942459106445,
+      "relevant_docs": [
+        "corpus-test-566"
+      ],
+      "top_contrib_indices": [
+        0,
+        11,
+        12,
+        7,
+        13
+      ],
+      "bottom_contrib_indices": [
+        48,
+        49,
+        50,
+        51,
+        52
+      ],
+      "top_contrib_values": [
+        0.03245093300938606,
+        0.03004407323896885,
+        0.029488885775208473,
+        0.02665986865758896,
+        0.026428943499922752
+      ],
+      "bottom_contrib_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "query_id": "query-test-346",
+      "query_text": "How did the constancy of the speed of light observed in the Michelson and Morley experiment lead to the questioning of Galilean relativity and the emergence of the Lorentz transformations?",
+      "num_query_tokens": 53,
+      "predicted_doc": "corpus-test-240",
+      "predicted_score": 29.423553466796875,
+      "relevant_docs": [
+        "corpus-test-250",
+        "corpus-test-227",
+        "corpus-test-232",
+        "corpus-test-265",
+        "corpus-test-231",
+        "corpus-test-493",
+        "corpus-test-255"
+      ],
+      "top_contrib_indices": [
+        0,
+        35,
+        24,
+        34,
+        36
+      ],
+      "bottom_contrib_indices": [
+        52,
+        51,
+        50,
+        19,
+        22
+      ],
+      "top_contrib_values": [
+        0.0330357700586319,
+        0.029848169535398483,
+        0.029050473123788834,
+        0.02863280102610588,
+        0.02615572325885296
+      ],
+      "bottom_contrib_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.009729351848363876,
+        0.009946435689926147
+      ]
+    },
+    {
+      "query_id": "query-test-374",
+      "query_text": "Describe how the fundamental constants such as h, c, and G are interconnected in the structure of the SI illustrated by the 'SI wheel', explaining their role in modern physical equations.",
+      "num_query_tokens": 53,
+      "predicted_doc": "corpus-test-42",
+      "predicted_score": 29.14698600769043,
+      "relevant_docs": [
+        "corpus-test-1119"
+      ],
+      "top_contrib_indices": [
+        6,
+        13,
+        38,
+        26,
+        18
+      ],
+      "bottom_contrib_indices": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "top_contrib_values": [
+        0.03380035236477852,
+        0.028338057920336723,
+        0.027753548696637154,
+        0.026459945365786552,
+        0.02632778137922287
+      ],
+      "bottom_contrib_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "query_id": "query-test-596",
+      "query_text": "How do EROI and entropy influence the overall efficiency of energy systems, and what implications do these concepts have on the choice between fossil, nuclear, and renewable energy sources?",
+      "num_query_tokens": 53,
+      "predicted_doc": "corpus-test-392",
+      "predicted_score": 28.687149047851562,
+      "relevant_docs": [
+        "corpus-test-376",
+        "corpus-test-396",
+        "corpus-test-402",
+        "corpus-test-398",
+        "corpus-test-386",
+        "corpus-test-433",
+        "corpus-test-372",
+        "corpus-test-400",
+        "corpus-test-409",
+        "corpus-test-374",
+        "corpus-test-370",
+        "corpus-test-364",
+        "corpus-test-373",
+        "corpus-test-417"
+      ],
+      "top_contrib_indices": [
+        7,
+        29,
+        20,
+        19,
+        32
+      ],
+      "bottom_contrib_indices": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "top_contrib_values": [
+        0.0337519496679306,
+        0.027942270040512085,
+        0.026729242876172066,
+        0.026635726913809776,
+        0.026541266590356827
+      ],
+      "bottom_contrib_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ]
+}

@@ -23,6 +23,37 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _to_pil_image(image: "Image.Image | torch.Tensor"):
+    from PIL import Image
+
+    if isinstance(image, Image.Image):
+        return image
+
+    tensor = image.detach().cpu()
+    if tensor.ndim == 2:
+        pass
+    elif tensor.ndim == 3:
+        if tensor.shape[0] in (1, 3, 4):
+            tensor = tensor.permute(1, 2, 0)
+        elif tensor.shape[-1] not in (1, 3, 4):
+            raise ValueError(f"Unsupported image tensor shape: {tuple(tensor.shape)}")
+    else:
+        raise ValueError(f"Unsupported image tensor rank: {tensor.ndim}")
+
+    if tensor.is_floating_point():
+        max_value = float(tensor.max()) if tensor.numel() else 0.0
+        if max_value <= 1.0:
+            tensor = tensor.clamp(0, 1).mul(255)
+        else:
+            tensor = tensor.clamp(0, 255)
+
+    tensor = tensor.to(torch.uint8).contiguous()
+    array = tensor.numpy()
+    if array.ndim == 3 and array.shape[-1] == 1:
+        array = array[..., 0]
+    return Image.fromarray(array)
+
+
 class ColPaliEngineWrapper(AbsEncoder):
     """Base wrapper for `colpali_engine` models. Adapted from https://github.com/illuin-tech/colpali/tree/bebcdd6715dba42624acd8d7f7222a16a5daf848/colpali_engine/models"""
 
@@ -45,10 +76,16 @@ class ColPaliEngineWrapper(AbsEncoder):
         # Load model
         self.mdl = model_class.from_pretrained(
             model_name,
-            device_map=self.device,
             adapter_kwargs={"revision": revision},
             **kwargs,
         )
+        if (
+            hasattr(self.mdl, "model")
+            and hasattr(self.mdl.model, "lm_head")
+            and getattr(self.mdl.model.lm_head.weight, "is_meta", False)
+        ):
+            self.mdl.model.lm_head.weight = self.mdl.get_input_embeddings().weight
+        self.mdl.to(self.device)
         self.mdl.eval()
 
         # Load processor
@@ -64,9 +101,18 @@ class ColPaliEngineWrapper(AbsEncoder):
         prompt_type: PromptType | None = None,
         **kwargs: Any,
     ) -> Array:
+        # Vidore3 OCR tasks expose image+text documents. ColPali-family late
+        # interaction wrappers cannot safely fuse the two streams here because
+        # image patch counts and text token counts differ. For document
+        # encoding, keep the image signal and ignore OCR text.
+        doc_image_only = (
+            getattr(prompt_type, "value", prompt_type) == "document"
+            and "image" in inputs.dataset.features
+            and "text" in inputs.dataset.features
+        )
         text_embeddings = None
         image_embeddings = None
-        if "text" in inputs.dataset.features:
+        if "text" in inputs.dataset.features and not doc_image_only:
             text_embeddings = self.get_text_embeddings(inputs, **kwargs)
         if "image" in inputs.dataset.features:
             image_embeddings = self.get_image_embeddings(inputs, **kwargs)
@@ -93,20 +139,11 @@ class ColPaliEngineWrapper(AbsEncoder):
         batch_size: int = 32,
         **kwargs,
     ):
-        import torchvision.transforms.functional as F
-        from PIL import Image
-
         all_embeds = []
 
         with torch.no_grad():
             for batch in tqdm(images, desc="Encoding images"):
-                # batch may be list of tensors or PIL
-                imgs = [
-                    F.to_pil_image(b.to(self.device))
-                    if not isinstance(b, Image.Image)
-                    else b
-                    for b in batch["image"]
-                ]
+                imgs = [_to_pil_image(b) for b in batch["image"]]
                 inputs = self.processor.process_images(imgs)
                 inputs = {k: v.to(self.device) for k, v in inputs.items()}
                 outs = self.encode_input(inputs)

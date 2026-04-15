@@ -79,17 +79,22 @@ class ColModelTraining:
     """
 
     def __init__(self, config: ColModelTrainingConfig) -> None:
+        
         self.config = config
         self.model = self.config.model
         self.current_git_hash = os.popen("git rev-parse HEAD").read().strip()
         self.train_dataset = self.config.train_dataset
         self.eval_dataset = self.config.eval_dataset
+        
         self.collator = VisualRetrieverCollator(
             processor=self.config.processor,
             max_length=self.config.max_length,
+            dataset=self.train_dataset,  # Pass dataset for lazy negative loading
         )
+        
 
     def train(self) -> None:
+  
         trainer = ContrastiveTrainer(
             model=self.model,
             train_dataset=self.train_dataset,
@@ -99,6 +104,7 @@ class ColModelTraining:
             loss_func=self.config.loss_func,
             is_vision_model=self.config.processor is not None,
         )
+      
 
         trainer.args.remove_unused_columns = False
 
@@ -106,6 +112,7 @@ class ColModelTraining:
         if self.config.callbacks:
             for callback in self.config.callbacks:
                 trainer.add_callback(callback)
+
 
         result = trainer.train(resume_from_checkpoint=self.config.tr_args.resume_from_checkpoint)
         print_summary(result)

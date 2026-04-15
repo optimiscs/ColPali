@@ -10,6 +10,9 @@
 /merged_model/
 /mteb_results/
 /mteb_results_ablation_base/
+/embeddings_cache/
+/merged_qwen3_vl_stage1/
+/mteb_embedding_shards/
 /projection_768.pt
 *.whl
 *.run

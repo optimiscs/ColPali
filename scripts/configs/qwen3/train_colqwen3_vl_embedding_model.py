@@ -1,5 +1,5 @@
-#stage1: accelerate launch scripts/configs/qwen3/train_colqwen3_vl_embedding_model.py --output-dir /home/moxu/MMRAG/otherExp/colpali/output/colqwen3_vl_2B_lr5e-6_dim2048_stage1 --peft --only-train-projection
-#stage2: accelerate launch scripts/configs/qwen3/train_colqwen3_vl_embedding_model.py --output-dir /home/moxu/MMRAG/otherExp/colpali/output/colqwen3_vl_2B_lr5e-6_dim2048_stage3 --peft --load-projection-only /home/moxu/MMRAG/otherExp/colpali/output/colqwen3_vl_2B_lr5e-6_dim2048_stage1/checkpoint-462 --target-modules "^(?!.*(embed_tokens|patch_embed|merger)).*(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj|proj).*$" --lr 5e-5
+#stage1: accelerate launch scripts/configs/qwen3/train_colqwen3_vl_embedding_model.py --output-dir /home/moxu/MMRAG/otherExp/colpali/output/colqwen3_vl_2B_lr2e-4_dim128_stage1_token --peft --only-train-projection --max-num-visual-tokens 1280 lr 2e-4
+#stage2: accelerate launch scripts/configs/qwen3/train_colqwen3_vl_embedding_model.py --output-dir /home/moxu/MMRAG/otherExp/colpali/output/colqwen3_vl_2B_lr5e-6_dim2048_stage3 --peft --load-projection-only /home/moxu/MMRAG/otherExp/colpali/output/colqwen3_vl_2B_lr5e-6_dim2048_stage1/checkpoint-462 --target-modules '"^(?!.*(embed_tokens|patch_embed|merger)).*(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj|proj).*$"' --lr 5e-5
 import argparse
 import json
 import shutil
@@ -19,6 +19,8 @@ from colpali_engine.utils.dataset_transformation import load_train_set
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--output-dir", type=str, required=True)
+    p.add_argument("--base-model", type=str, default="Qwen/Qwen3-VL-Embedding-2B",
+                   help="基础模型路径或 HuggingFace model id")
     p.add_argument("--lr", type=float, default=2e-4)
     p.add_argument("--tau", type=float, default=0.02)
     p.add_argument("--trainer", type=str, default="hf", choices=["torch", "hf"])
@@ -49,6 +51,12 @@ def parse_args():
         type=str,
         default=None,
         help="Stage 2 专用：只加载投影层权重，不加载 optimizer 状态。例如指向 checkpoint-80 目录",
+    )
+    p.add_argument(
+        "--max-num-visual-tokens",
+        type=int,
+        default=1280,
+        help="ColQwen3VLEmbeddingProcessor 的 max_num_visual_tokens（默认 768，与此前脚本一致）",
     )
     return p.parse_args()
 
@@ -94,7 +102,7 @@ if __name__ == "__main__":
 
     # 2. 加载基础模型
     model = ColQwen3VLEmbedding.from_pretrained(
-        "Qwen/Qwen3-VL-Embedding-2B",
+        args.base_model,
         torch_dtype=torch.bfloat16,
         use_cache=False,
         attn_implementation="sdpa",
@@ -123,7 +131,10 @@ if __name__ == "__main__":
 
     config = ColModelTrainingConfig(
         output_dir=args.output_dir,
-        processor=ColQwen3VLEmbeddingProcessor.from_pretrained("Qwen/Qwen3-VL-Embedding-2B", max_num_visual_tokens=768),
+        processor=ColQwen3VLEmbeddingProcessor.from_pretrained(
+            args.base_model,
+            max_num_visual_tokens=args.max_num_visual_tokens,
+        ),
         model=model,
         train_dataset=load_train_set() if not args.max_samples else ColPaliEngineDataset(
             load_dataset("vidore/colpali_train_set", split="train").shuffle(seed=42).select(range(args.max_samples)), pos_target_column_name="image"
@@ -140,9 +151,9 @@ if __name__ == "__main__":
             per_device_eval_batch_size=32,
             gradient_accumulation_steps=4,
             eval_strategy="steps",
-            save_steps=50,
+            save_steps=25,
             logging_steps=10,
-            eval_steps=50,
+            eval_steps=25,
             warmup_steps=25,
             learning_rate=args.lr,
             save_total_limit=3,

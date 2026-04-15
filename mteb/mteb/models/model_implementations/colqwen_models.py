@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import TYPE_CHECKING, Any
 
 import torch
@@ -24,6 +25,7 @@ from .colpali_models import (
     COLPALI_TRAINING_DATA,
     ColPaliEngineWrapper,
 )
+from .qwen3_vl_embedding_models import QWEN3_VL_EMBEDDING_CITATION
 
 logger = logging.getLogger(__name__)
 
@@ -203,6 +205,291 @@ class ColQwen3_5Wrapper(AbsEncoder):  # noqa: N801
         a = [torch.as_tensor(x) for x in a]
         b = [torch.as_tensor(x) for x in b]
         return self.processor.score_multi_vector(a, b, device=self.device)
+
+
+class ColQwen3VLEmbeddingWrapper(AbsEncoder):
+    """Wrapper for Qwen3-VL-Embedding via colpali_engine (late-interaction / MaxSim).
+
+    Registry `ModelMeta.name` is suffixed with ``-colpali`` to avoid clashing with the
+    dense ``qwen3_vl_embedding_2b`` entry; weights load from ``hub_model_id`` (default
+    ``Qwen/Qwen3-VL-Embedding-2B``).
+
+    Optional ``peft_adapter_path`` loads LoRA from a training checkpoint (directory with
+    ``adapter_config.json``) or a merged full model (no adapter config).
+
+    Loading matches ``ColQwen3_5Wrapper``: single ``device`` string and ``device_map`` thereof.
+    """
+
+    def __init__(
+        self,
+        model_name: str,
+        revision: str | None = None,
+        device: str | None = None,
+        max_num_visual_tokens: int | None = None,
+        hub_model_id: str | None = None,
+        peft_adapter_path: str | None = None,
+        similarity_use_max_sim: bool = False,
+        **kwargs: Any,
+    ):
+        requires_image_dependencies()
+        requires_package(
+            self, "colpali_engine", model_name, "pip install mteb[colpali_engine]"
+        )
+        from colpali_engine.models import ColQwen3VLEmbedding, ColQwen3VLEmbeddingProcessor
+
+        self.similarity_use_max_sim = similarity_use_max_sim
+
+        primary = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = primary
+        weights_id = hub_model_id or model_name
+
+        fk = {
+            k: v
+            for k, v in kwargs.items()
+            if k not in ("device_map", "max_memory", "torch_dtype")
+        }
+        load_kw: dict[str, Any] = {
+            **fk,
+            "torch_dtype": kwargs.get("torch_dtype", torch.bfloat16),
+            "device_map": primary,
+        }
+
+        if peft_adapter_path is None:
+            self.model = ColQwen3VLEmbedding.from_pretrained(
+                weights_id,
+                adapter_kwargs={"revision": revision},
+                **load_kw,
+            )
+            proc_source = weights_id
+        elif os.path.isfile(os.path.join(peft_adapter_path, "adapter_config.json")):
+            requires_package(self, "peft", peft_adapter_path, "pip install peft")
+            from peft import PeftModel
+
+            print(f"📦 底座: {weights_id}")
+            base = ColQwen3VLEmbedding.from_pretrained(
+                weights_id,
+                adapter_kwargs={"revision": revision},
+                **load_kw,
+            )
+            print(f"🔗 LoRA: {peft_adapter_path}")
+            self.model = PeftModel.from_pretrained(base, peft_adapter_path).merge_and_unload()
+            self.model = self.model.to(primary)
+            proc_source = weights_id
+        else:
+            print(f"📦 Merged 权重: {peft_adapter_path}")
+            self.model = ColQwen3VLEmbedding.from_pretrained(
+                peft_adapter_path,
+                adapter_kwargs={"revision": revision},
+                **load_kw,
+            )
+            proc_source = peft_adapter_path
+
+        self.model.eval()
+
+        proc_kw: dict[str, Any] = {}
+        if revision is not None:
+            proc_kw["revision"] = revision
+        if max_num_visual_tokens is not None:
+            proc_kw["max_num_visual_tokens"] = max_num_visual_tokens
+        self.processor = ColQwen3VLEmbeddingProcessor.from_pretrained(proc_source, **proc_kw)
+
+    def encode(
+        self,
+        inputs: DataLoader[BatchedInput],
+        *,
+        task_metadata: TaskMetadata,
+        hf_split: str,
+        hf_subset: str,
+        prompt_type: PromptType | None = None,
+        **kwargs: Any,
+    ) -> Array:
+        if (
+            "text" not in inputs.dataset.features
+            and "image" not in inputs.dataset.features
+        ):
+            raise ValueError("No text or image features found in inputs.")
+        # prompt_type 由 MTEB 传入；路由与 ColQwen3_5 一致，按 dataset features（检索：query 常仅 text、corpus 仅 image）
+        return self.get_fused_embeddings(inputs, **kwargs)
+
+    def _encode_inputs(self, encoded_inputs: dict[str, torch.Tensor]) -> torch.Tensor:
+        if hasattr(self.model, "rope_deltas"):
+            self.model.rope_deltas = None
+        return self.model(**encoded_inputs)
+
+    def get_fused_embeddings(
+        self,
+        image_texts_pairs: DataLoader[BatchedInput] | None = None,
+        batch_size: int = 32,
+        show_progress_bar: bool = True,
+        **kwargs: Any,
+    ):
+        import torchvision.transforms.functional as F
+        from PIL import Image
+
+        kwargs.pop("prompt_type", None)
+
+        contains_image = "image" in image_texts_pairs.dataset.features
+        contains_text = "text" in image_texts_pairs.dataset.features
+        contains_both = contains_image and contains_text
+
+        if contains_both:
+            progress_desc = "Encoding images+texts"
+        elif contains_image:
+            progress_desc = "Encoding images"
+        elif contains_text:
+            progress_desc = "Encoding texts"
+        else:
+            raise ValueError("No text or image features found in inputs.")
+
+        all_embeds: list[torch.Tensor] = []
+        with torch.no_grad():
+            for batch in tqdm(
+                image_texts_pairs,
+                disable=not show_progress_bar,
+                desc=progress_desc,
+            ):
+                if contains_image:
+                    imgs = [
+                        F.to_pil_image(b.to(self.device))
+                        if not isinstance(b, Image.Image)
+                        else b
+                        for b in batch["image"]
+                    ]
+                    imgs = [img.convert("RGB") for img in imgs]
+                else:
+                    imgs = None
+                if contains_text:
+                    texts = batch["text"]
+                else:
+                    texts = None
+                if contains_both:
+                    assert imgs is not None and texts is not None
+                    assert len(imgs) == len(texts), (
+                        f"The number of texts and images must have the same length, got {len(imgs)} and {len(texts)}"
+                    )
+
+                if contains_image:
+                    inputs = self.processor.process_images(imgs)
+                else:
+                    if not isinstance(texts, (list, tuple)):
+                        texts = [texts]
+                    inputs = self.processor.process_queries(texts=texts)
+                inputs = {k: v.to(self.device) for k, v in inputs.items()}
+                outs = self._encode_inputs(inputs)
+                all_embeds.extend(outs.cpu().to(torch.float32))
+
+        return torch.nn.utils.rnn.pad_sequence(
+            all_embeds, batch_first=True, padding_value=0
+        )
+
+    def similarity(self, a, b):
+        if self.similarity_use_max_sim:
+            from mteb.similarity_functions import max_sim
+
+            q_embeds = torch.as_tensor(a) if not isinstance(a, torch.Tensor) else a
+            d_embeds = torch.as_tensor(b) if not isinstance(b, torch.Tensor) else b
+            corpus_chunk_size = 200
+            query_step = 4
+            num_docs = d_embeds.size(0)
+            final_scores = None
+            for chunk_start in range(0, num_docs, corpus_chunk_size):
+                chunk_end = min(chunk_start + corpus_chunk_size, num_docs)
+                d_chunk = d_embeds[chunk_start:chunk_end]
+                chunk_scores_list = []
+                for q_start in range(0, q_embeds.size(0), query_step):
+                    q_end = min(q_start + query_step, q_embeds.size(0))
+                    q_batch = q_embeds[q_start:q_end]
+                    chunk_scores_list.append(max_sim(q_batch, d_chunk))
+                chunk_scores = torch.cat(chunk_scores_list, dim=0)
+                if final_scores is None:
+                    final_scores = chunk_scores
+                else:
+                    final_scores = torch.cat([final_scores, chunk_scores], dim=1)
+            return final_scores
+
+        a = [torch.as_tensor(x) for x in a]
+        b = [torch.as_tensor(x) for x in b]
+        return self.processor.score_multi_vector(a, b, device=self.device)
+
+    def similarity_with_attribution(self, query_embeddings, doc_embeddings, top_k=None):
+        """Compute similarity with token-level attribution.
+
+        Args:
+            query_embeddings: List of query embedding tensors or a single tensor.
+            doc_embeddings: List of doc embedding tensors or a single tensor.
+            top_k: If specified, only use top_k query tokens by contribution.
+
+        Returns:
+            Tuple of (final_scores, token_contributions, max_doc_indices).
+            - final_scores: (num_queries, num_docs)
+            - token_contributions: (num_queries, num_docs, num_query_tokens)
+            - max_doc_indices: (num_queries, num_docs, num_query_tokens)
+        """
+        from mteb.similarity_functions import max_sim_attribution
+
+        q_embeds = torch.as_tensor(query_embeddings) if not isinstance(query_embeddings, torch.Tensor) else query_embeddings
+        d_embeds = torch.as_tensor(doc_embeddings) if not isinstance(doc_embeddings, torch.Tensor) else doc_embeddings
+
+        corpus_chunk_size = 200
+        query_step = 4
+
+        num_docs = d_embeds.size(0)
+        num_queries = q_embeds.size(0)
+
+        final_scores = None
+        all_token_contribs = None
+        all_max_idxs = None
+
+        for chunk_start in range(0, num_docs, corpus_chunk_size):
+            chunk_end = min(chunk_start + corpus_chunk_size, num_docs)
+            d_chunk = d_embeds[chunk_start:chunk_end]
+
+            chunk_scores_list = []
+            chunk_contribs_list = []
+            chunk_idxs_list = []
+
+            for q_start in range(0, num_queries, query_step):
+                q_end = min(q_start + query_step, num_queries)
+                q_batch = q_embeds[q_start:q_end]
+
+                scores, contribs, max_idxs = max_sim_attribution(q_batch, d_chunk)
+
+                chunk_scores_list.append(scores)
+                chunk_contribs_list.append(contribs)
+                chunk_idxs_list.append(max_idxs)
+
+            chunk_scores = torch.cat(chunk_scores_list, dim=0)
+            chunk_contribs = torch.cat(chunk_contribs_list, dim=0)
+            chunk_idxs = torch.cat(chunk_idxs_list, dim=0)
+
+            if final_scores is None:
+                final_scores = chunk_scores
+                all_token_contribs = chunk_contribs
+                all_max_idxs = chunk_idxs
+            else:
+                final_scores = torch.cat([final_scores, chunk_scores], dim=1)
+                all_token_contribs = torch.cat([all_token_contribs, chunk_contribs], dim=1)
+                all_max_idxs = torch.cat([all_max_idxs, chunk_idxs], dim=1)
+
+        if top_k is not None:
+            top_k = min(top_k, all_token_contribs.shape[-1])
+            top_contribs, top_indices = torch.topk(all_token_contribs, k=top_k, dim=-1)
+            final_scores = top_contribs.sum(dim=-1)
+
+            batch_size, num_docs, num_query_tokens = all_token_contribs.shape
+            new_contribs = torch.zeros_like(all_token_contribs)
+            new_idxs = torch.zeros_like(all_max_idxs, dtype=torch.long)
+
+            for i in range(batch_size):
+                for j in range(num_docs):
+                    for t, idx in enumerate(top_indices[i, j]):
+                        new_contribs[i, j, t] = all_token_contribs[i, j, idx]
+                        new_idxs[i, j, t] = all_max_idxs[i, j, idx]
+
+            all_token_contribs = new_contribs
+            all_max_idxs = new_idxs
+
+        return final_scores, all_token_contribs, all_max_idxs
 
 
 class ColQwen3Wrapper(AbsEncoder):
@@ -639,4 +926,37 @@ colqwen3_5_v3 = ModelMeta(
     similarity_fn_name=ScoringFunction.MAX_SIM,
     use_instructions=False,
     training_datasets=COLQWEN35_V3_TRAINING_DATA,
+)
+
+# Late-interaction (colpali_engine) weights from Qwen/Qwen3-VL-Embedding-2B; distinct name from dense qwen3_vl_embedding_2b.
+colqwen3_vl_embedding_2b_colpali = ModelMeta(
+    loader=ColQwen3VLEmbeddingWrapper,
+    loader_kwargs=dict(
+        hub_model_id="Qwen/Qwen3-VL-Embedding-2B",
+        torch_dtype=torch.bfloat16,
+        attn_implementation="sdpa",
+        use_cache=False,
+        similarity_use_max_sim=True,
+    ),
+    name="Qwen/Qwen3-VL-Embedding-2B-colpali",
+    model_type=["late-interaction"],
+    languages=["eng-Latn"],
+    open_weights=True,
+    revision="2a50926d213628c727f38025982a76f655673f54",
+    release_date="2026-01-08",
+    modalities=["image", "text"],
+    n_parameters=2_127_532_032,
+    n_embedding_parameters=311_164_928,
+    memory_usage_mb=7629,
+    max_tokens=32768,
+    embed_dim=2048,
+    license="apache-2.0",
+    reference="https://huggingface.co/Qwen/Qwen3-VL-Embedding-2B",
+    similarity_fn_name=ScoringFunction.MAX_SIM,
+    framework=["PyTorch", "ColPali", "Transformers", "safetensors"],
+    use_instructions=True,
+    public_training_code=None,
+    public_training_data=None,
+    training_datasets=COLPALI_TRAINING_DATA,
+    citation=QWEN3_VL_EMBEDDING_CITATION,
 )

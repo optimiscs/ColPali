@@ -32,10 +32,12 @@ class VisualRetrieverCollator:
         self,
         processor: BaseVisualRetrieverProcessor,
         max_length: int = 2048,
+        dataset=None,  # For lazy loading of negative images
     ):
         self.processor = processor
         self.max_length = max_length
         self.image_token_id = None
+        self.dataset = dataset  # Must have id_to_idx and data attributes
 
         # If processor is one of the supported types, extract the <image> token id.
         if isinstance(self.processor, (ColPaliProcessor,)):
@@ -50,28 +52,68 @@ class VisualRetrieverCollator:
             print("Setting padding side to right")
             self.processor.tokenizer.padding_side = "right"
 
+    def _resolve_negative_ids(self, neg_target_ids):
+        """Resolve negative IDs to images using dataset's id_to_idx mapping."""
+        if not neg_target_ids:
+            return None
+
+        resolved_images = []
+        skipped = 0
+        for neg_id in neg_target_ids:
+            if neg_id in self.dataset.id_to_idx:
+                neg_idx = self.dataset.id_to_idx[neg_id]
+                if neg_idx < len(self.dataset.data):
+                    neg_sample = self.dataset.data[neg_idx]
+                    img = neg_sample.get(self.dataset.pos_target_column_name)
+                    if img is not None:
+                        resolved_images.append(img)
+                    else:
+                        skipped += 1
+                else:
+                    skipped += 1
+            else:
+                skipped += 1
+
+        if skipped > 0 and len(resolved_images) == 0:
+            print(f"【tiaoshi】WARNING: all {len(neg_target_ids)} negatives skipped! resolved={len(resolved_images)}")
+        return resolved_images if resolved_images else None
+
     def __call__(self, examples: List[Dict[str, Any]]) -> Dict[str, Any]:
         queries: List[Union[None, str, Image]] = []
         pos_targets: List[Union[str, Image]] = []
         neg_targets: List[Union[str, Image]] = []
+        neg_ids_list: List[List[str]] = []  # Store negative IDs for resolution
 
-        # Parse the examples.
+        # Parse the examples, filtering out None (None query samples)
         for example in examples:
+            if example is None:
+                continue
             assert ColPaliEngineDataset.QUERY_KEY in example, f"Missing {ColPaliEngineDataset.QUERY_KEY} in example."
             query = example[ColPaliEngineDataset.QUERY_KEY]
-            sampled_query = random.choice(query) if isinstance(query, list) else query
-            queries.append(sampled_query)
+            if isinstance(query, list):
+                query = query[0]  # Take first query if list
+            queries.append(query)
 
             assert ColPaliEngineDataset.POS_TARGET_KEY in example, (
                 f"Missing {ColPaliEngineDataset.POS_TARGET_KEY} in example."
             )
             pos_tgt = example[ColPaliEngineDataset.POS_TARGET_KEY]
-            sample_pos = random.choice(pos_tgt) if isinstance(pos_tgt, list) else pos_tgt
-            pos_targets.append(sample_pos)
+            if isinstance(pos_tgt, list):
+                pos_tgt = pos_tgt[0]  # Take first pos target
+            pos_targets.append(pos_tgt)
 
-            neg_tgt = example.get(ColPaliEngineDataset.NEG_TARGET_KEY, None)
-            if neg_tgt is not None:
-                neg_targets.append(neg_tgt)
+            # Collect negative IDs for later resolution
+            neg_tgt_ids = example.get(ColPaliEngineDataset.NEG_TARGET_IDS_KEY, None)
+            neg_ids_list.append(neg_tgt_ids if neg_tgt_ids else [])
+
+        # Resolve negative IDs to images (if dataset is available)
+        # Only include samples that have actual negatives (matching original behavior)
+        neg_targets = []
+        for neg_ids in neg_ids_list:
+            if neg_ids and self.dataset is not None:
+                resolved = self._resolve_negative_ids(neg_ids)
+                if resolved:
+                    neg_targets.append(resolved)
 
         # Ensure all queries are strings or images.
         assert all(isinstance(q, str) for q in queries), (

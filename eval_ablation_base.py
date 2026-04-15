@@ -1,5 +1,5 @@
 """
-官方 Qwen3-VL-Embedding-2B 基座评测（MTEB 内置 qwen3_vl_embedding_2b）。
+官方 Qwen3-VL-Embedding-2B 基座评测（MTEB 内置 qwen3_vl_embedding_8b）。
 
 使用 mteb.models.model_implementations.qwen3_vl_embedding_models 中的
 Qwen3VLEmbeddingWrapper：last-token 池化 + L2 归一化 + 余弦相似度（dense），
@@ -17,13 +17,15 @@ LoRA 微调对比请使用 eval.py。
 from __future__ import annotations
 
 import argparse
+import sys
+sys.path.insert(0, "/home/moxu/MMRAG/otherExp/colpali/mteb")
 
 import mteb
-from mteb.models.model_implementations.qwen3_vl_embedding_models import qwen3_vl_embedding_2b
+from mteb.models.model_implementations.qwen3_vl_embedding_models import qwen3_vl_embedding_8b
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="MTEB：官方 Qwen3-VL-Embedding-2B（qwen3_vl_embedding_2b）")
+    p = argparse.ArgumentParser(description="MTEB：官方 Qwen3-VL-Embedding-2B（qwen3_vl_embedding_8b）")
     p.add_argument(
         "--tasks",
         type=str,
@@ -34,7 +36,6 @@ def parse_args() -> argparse.Namespace:
             "Vidore3FinanceEnRetrieval.v2",
             "Vidore3FinanceFrRetrieval.v2",
             "Vidore3HrRetrieval.v2",
-            "Vidore3IndustrialRetrieval.v2",
             "Vidore3PharmaceuticalsRetrieval.v2",
             "Vidore3PhysicsRetrieval.v2",
         ],
@@ -55,7 +56,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    meta = qwen3_vl_embedding_2b
+    meta = qwen3_vl_embedding_8b
     model = meta.load_model(device=args.device)
 
     tasks = mteb.get_tasks(tasks=list(args.tasks),languages=["eng-Latn"])
@@ -74,7 +75,7 @@ def main() -> None:
         path = cache.get_task_result_path(task_name=tr.task_name, model_name=meta)
         print(f"\n📁 任务「{tr.task_name}」结果: {path.resolve()}")
 
-    print("\n模型: 官方 qwen3_vl_embedding_2b（单向量 + cosine）。LoRA 结果见 eval.py。")
+    print("\n模型: 官方 qwen3_vl_embedding_8b（单向量 + cosine）。LoRA 结果见 eval.py。")
 
 
 if __name__ == "__main__":

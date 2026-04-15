@@ -2,7 +2,7 @@ from typing import ClassVar, List, Optional, Tuple, Union
 
 import torch
 from PIL import Image
-from transformers import BatchEncoding, BatchFeature
+from transformers import AutoImageProcessor, AutoTokenizer, BatchEncoding, BatchFeature
 from transformers.models.qwen2_vl import Qwen2VLProcessor
 from transformers.models.qwen2_vl.image_processing_qwen2_vl import smart_resize
 
@@ -33,12 +33,23 @@ class ColQwen2Processor(BaseVisualRetrieverProcessor, Qwen2VLProcessor):
         chat_template=None,
         **kwargs,
     ):
-        super().__init__(
-            image_processor=image_processor,
-            tokenizer=tokenizer,
-            video_processor=video_processor,
-            chat_template=chat_template,
-            **kwargs,
+        self.image_processor = image_processor
+        self.tokenizer = tokenizer
+        self.video_processor = video_processor
+        self.chat_template = chat_template
+        self._processor_class = kwargs.get("processor_class")
+
+        self.image_token = "<|image_pad|>" if not hasattr(tokenizer, "image_token") else tokenizer.image_token
+        self.video_token = "<|video_pad|>" if not hasattr(tokenizer, "video_token") else tokenizer.video_token
+        self.image_token_id = (
+            tokenizer.image_token_id
+            if getattr(tokenizer, "image_token_id", None)
+            else tokenizer.convert_tokens_to_ids(self.image_token)
+        )
+        self.video_token_id = (
+            tokenizer.video_token_id
+            if getattr(tokenizer, "video_token_id", None)
+            else tokenizer.convert_tokens_to_ids(self.video_token)
         )
         self.tokenizer.padding_side = "left"
 
@@ -49,10 +60,14 @@ class ColQwen2Processor(BaseVisualRetrieverProcessor, Qwen2VLProcessor):
         device_map: Optional[str] = None,
         **kwargs,
     ):
-        instance = super().from_pretrained(
-            *args,
-            device_map=device_map,
-            **kwargs,
+        load_kwargs = dict(kwargs)
+        image_processor = AutoImageProcessor.from_pretrained(*args, **load_kwargs)
+        tokenizer = AutoTokenizer.from_pretrained(*args, **load_kwargs)
+        instance = cls(
+            image_processor=image_processor,
+            tokenizer=tokenizer,
+            video_processor=None,
+            chat_template=load_kwargs.get("chat_template"),
         )
 
         if "max_num_visual_tokens" in kwargs:

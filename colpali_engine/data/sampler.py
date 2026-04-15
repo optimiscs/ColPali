@@ -8,12 +8,15 @@ from torch.utils.data import BatchSampler, Dataset
 class SingleDatasetBatchSampler(BatchSampler):
     """
     A batch sampler that samples from a single dataset per batch and handles distribution across GPUs.
+    Supports filtering to only sample valid indices (e.g., non-None samples).
 
     Args:
         datasets (List[Dataset]): List of datasets to sample from
         batch_size (int): Global batch size (will be divided across GPUs)
         drop_last (bool): Whether to drop the last incomplete batch
         generator (Optional[torch.Generator]): Random number generator
+        valid_indices (Optional[List[List[int]]]): Pre-computed list of valid indices per dataset.
+            If provided, only these indices will be sampled.
     """
 
     def __init__(
@@ -22,6 +25,7 @@ class SingleDatasetBatchSampler(BatchSampler):
         global_batch_size: int,
         drop_last: bool = True,
         generator: Optional[torch.Generator] = None,
+        valid_indices: Optional[List[List[int]]] = None,
     ):
         self.datasets = datasets
         self.global_batch_size = global_batch_size
@@ -35,24 +39,65 @@ class SingleDatasetBatchSampler(BatchSampler):
         self.cumsum_sizes = np.cumsum([0] + self.dataset_sizes).tolist()
         self.total_size = sum(self.dataset_sizes)
 
-        # Create shuffled indices for each dataset
-        self.indices_per_dataset = [
-            torch.randperm(size, generator=self.generator).tolist() for size in self.dataset_sizes
-        ]
+        # Use pre-computed valid indices if provided
+        if valid_indices is not None:
+            self.valid_indices_per_dataset = valid_indices
+            self.valid_sizes = [len(v) for v in valid_indices]
+        else:
+            self.valid_indices_per_dataset = None
+            self.valid_sizes = self.dataset_sizes
+
+        # Create shuffled indices for each dataset (using valid indices if filter provided)
+        if self.valid_indices_per_dataset is not None:
+            self.indices_per_dataset = [
+                self._shuffle_valid_indices(valid_idxs)
+                for valid_idxs in self.valid_indices_per_dataset
+            ]
+            self.max_positions = [(size // self.global_batch_size) * self.global_batch_size for size in self.valid_sizes]
+        else:
+            self.indices_per_dataset = [
+                torch.randperm(size, generator=self.generator).tolist() for size in self.dataset_sizes
+            ]
+            self.max_positions = [(size // self.global_batch_size) * self.global_batch_size for size in self.dataset_sizes]
+
         self.current_positions = [0] * len(datasets)
 
         self.available_datasets = list(range(len(datasets)))
-        self.max_positions = [(size // self.global_batch_size) * self.global_batch_size for size in self.dataset_sizes]
+        self._update_available_datasets()
+
+    def _shuffle_valid_indices(self, valid_idxs: List[int]) -> List[int]:
+        """Shuffle valid indices using the generator."""
+        if len(valid_idxs) == 0:
+            return []
+        perm = torch.randperm(len(valid_idxs), generator=self.generator).tolist()
+        return [valid_idxs[i] for i in perm]
+
+    def _update_available_datasets(self):
+        """Update available datasets based on remaining valid samples."""
+        self.available_datasets = [
+            i for i in range(len(self.datasets))
+            if self.current_positions[i] < len(self.indices_per_dataset[i])
+        ]
 
     def __iter__(self) -> Iterator[List[int]]:
         # Reset state
         self.current_positions = [0] * len(self.datasets)
-        self.available_datasets = list(range(len(self.datasets)))
-        self.current_data_lengths = [size for size in self.dataset_sizes]  # full length, never shrinks
+        self._update_available_datasets()
+
+        # Recompute valid indices for fresh epoch (respects new seed from set_epoch)
+        if self.valid_indices_per_dataset is not None:
+            self.indices_per_dataset = [
+                self._shuffle_valid_indices(valid_idxs)
+                for valid_idxs in self.valid_indices_per_dataset
+            ]
 
         while self.available_datasets:
             # Build probabilities for available datasets only
-            lengths = [self.current_data_lengths[i] for i in self.available_datasets]
+            lengths = []
+            for i in self.available_datasets:
+                remaining = len(self.indices_per_dataset[i]) - self.current_positions[i]
+                lengths.append(remaining)
+
             total_length = sum(lengths)
             if total_length <= 0:
                 break  # nothing left to sample
@@ -68,13 +113,12 @@ class SingleDatasetBatchSampler(BatchSampler):
             current_pos = self.current_positions[dataset_idx]
             end_pos = current_pos + self.global_batch_size
 
-            if end_pos <= self.max_positions[dataset_idx]:
+            if end_pos <= len(dataset_indices):  # Check against actual shuffled list length
                 batch_indices = [idx + self.cumsum_sizes[dataset_idx] for idx in dataset_indices[current_pos:end_pos]]
                 self.current_positions[dataset_idx] = end_pos
-                self.current_data_lengths[dataset_idx] = self.dataset_sizes[dataset_idx] - end_pos
 
                 # Remove if exhausted
-                if end_pos >= self.max_positions[dataset_idx]:
+                if current_pos >= len(dataset_indices):
                     self.available_datasets.remove(dataset_idx)
 
                 yield batch_indices
@@ -97,11 +141,21 @@ class SingleDatasetBatchSampler(BatchSampler):
         self.generator.manual_seed(new_seed)
 
         # Reshuffle indices for each dataset
-        self.indices_per_dataset = [torch.randperm(size, generator=torch_gen).tolist() for size in self.dataset_sizes]
+        if self.valid_indices_per_dataset is not None:
+            self.indices_per_dataset = [
+                self._shuffle_valid_indices(valid_idxs)
+                for valid_idxs in self.valid_indices_per_dataset
+            ]
+        else:
+            self.indices_per_dataset = [
+                torch.randperm(size, generator=torch_gen).tolist() for size in self.dataset_sizes
+            ]
 
     @property
     def batch_size(self) -> int:
         return self.global_batch_size
 
     def __len__(self) -> int:
+        if self.valid_sizes is not None:
+            return sum(size // self.global_batch_size for size in self.valid_sizes)
         return sum(size // self.global_batch_size for size in self.dataset_sizes)

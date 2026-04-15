@@ -335,3 +335,41 @@ def similarity(text_embeddings: Array, input_embeddings: Array) -> Array:
     logits = torch.matmul(input_embeddings_tensor, text_embeddings_tensor.T)
     probs = (logits * 100).softmax(dim=-1)
     return probs
+
+
+def max_sim_attribution(
+    a: Array, b: Array
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Compute MaxSim with token-level attribution.
+
+    Returns the final scores, per-token contributions, and the doc token indices
+    that each query token matches to.
+
+    Args:
+        a: Query tensor of shape (batch_size, num_query_tokens, token_dim).
+        b: Document tensor of shape (batch_size, num_doc_tokens, token_dim).
+
+    Returns:
+        Tuple of (final_scores, token_contributions, max_doc_indices):
+        - final_scores: (num_queries, num_docs) MaxSim scores
+        - token_contributions: (num_queries, num_docs, num_query_tokens) max sim values per query token
+        - max_doc_indices: (num_queries, num_docs, num_query_tokens) which doc token each query token matched to
+    """
+    a = _convert_to_tensor(a)
+    b = _convert_to_tensor(b)
+
+    if len(a.shape) == 2:
+        a = a.reshape(1, *a.shape)
+
+    if len(b.shape) == 2:
+        b = b.reshape(1, *b.shape)
+
+    scores = torch.einsum("ash,bth->abst", a, b)
+
+    max_result = scores.max(axis=-1)  # max over doc tokens
+    token_contributions = max_result.values
+    max_doc_indices = max_result.indices
+
+    final_scores = token_contributions.sum(axis=-1)
+
+    return final_scores, token_contributions, max_doc_indices

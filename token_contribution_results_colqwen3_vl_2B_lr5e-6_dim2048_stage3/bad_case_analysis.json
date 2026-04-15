@@ -1,0 +1,217 @@
+{
+  "low_contribution_cases": [],
+  "ranking_failures": [
+    {
+      "query_id": "query-test-491",
+      "query_text": "Explain why the Schr\u00f6dinger equation is insufficient for relativistic phenomena and show how the Klein-Gordon equation addresses this, highlighting its limitations in interpretation.",
+      "num_query_tokens": 53,
+      "predicted_doc": "corpus-test-112",
+      "predicted_score": 29.84429931640625,
+      "relevant_docs": [
+        "corpus-test-101",
+        "corpus-test-93"
+      ],
+      "top_contrib_indices": [
+        1,
+        8,
+        13,
+        9,
+        5
+      ],
+      "bottom_contrib_indices": [
+        0,
+        49,
+        50,
+        51,
+        47
+      ],
+      "top_contrib_values": [
+        0.033354129642248154,
+        0.031118473038077354,
+        0.030984552577137947,
+        0.030483392998576164,
+        0.029434042051434517
+      ],
+      "bottom_contrib_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "query_id": "query-test-374",
+      "query_text": "Describe how the fundamental constants such as h, c, and G are interconnected in the structure of the SI illustrated by the 'SI wheel', explaining their role in modern physical equations.",
+      "num_query_tokens": 53,
+      "predicted_doc": "corpus-test-1123",
+      "predicted_score": 28.786529541015625,
+      "relevant_docs": [
+        "corpus-test-1119"
+      ],
+      "top_contrib_indices": [
+        6,
+        15,
+        13,
+        10,
+        11
+      ],
+      "bottom_contrib_indices": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "top_contrib_values": [
+        0.0344577319920063,
+        0.0304679274559021,
+        0.030379395931959152,
+        0.028458891436457634,
+        0.02803252451121807
+      ],
+      "bottom_contrib_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "query_id": "query-test-501",
+      "query_text": "In what way do the dimensional expressions of force (MLT\u207b\u00b2) and energy (ML\u00b2T\u207b\u00b2) differ, and what does this reveal about their physical relationship?",
+      "num_query_tokens": 53,
+      "predicted_doc": "corpus-test-39",
+      "predicted_score": 28.6502628326416,
+      "relevant_docs": [
+        "corpus-test-1133"
+      ],
+      "top_contrib_indices": [
+        0,
+        11,
+        16,
+        8,
+        22
+      ],
+      "bottom_contrib_indices": [
+        52,
+        49,
+        48,
+        51,
+        50
+      ],
+      "top_contrib_values": [
+        0.034346986562013626,
+        0.028736630454659462,
+        0.027759604156017303,
+        0.027247576043009758,
+        0.027033615857362747
+      ],
+      "bottom_contrib_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "query_id": "query-test-354",
+      "query_text": "Explain how the input of solar energy allows living organisms to maintain a state of order despite the natural increase in entropy in the universe, and what impact this has on their environment.",
+      "num_query_tokens": 53,
+      "predicted_doc": "corpus-test-425",
+      "predicted_score": 28.401758193969727,
+      "relevant_docs": [
+        "corpus-test-1269",
+        "corpus-test-1256",
+        "corpus-test-1271",
+        "corpus-test-1264",
+        "corpus-test-1246",
+        "corpus-test-1261",
+        "corpus-test-1262",
+        "corpus-test-1247",
+        "corpus-test-1272"
+      ],
+      "top_contrib_indices": [
+        0,
+        16,
+        22,
+        34,
+        24
+      ],
+      "bottom_contrib_indices": [
+        52,
+        49,
+        48,
+        51,
+        50
+      ],
+      "top_contrib_values": [
+        0.03505915403366089,
+        0.030567623674869537,
+        0.028658905997872353,
+        0.028434669598937035,
+        0.02768186666071415
+      ],
+      "bottom_contrib_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "query_id": "query-test-596",
+      "query_text": "How do EROI and entropy influence the overall efficiency of energy systems, and what implications do these concepts have on the choice between fossil, nuclear, and renewable energy sources?",
+      "num_query_tokens": 53,
+      "predicted_doc": "corpus-test-392",
+      "predicted_score": 27.695619583129883,
+      "relevant_docs": [
+        "corpus-test-400",
+        "corpus-test-372",
+        "corpus-test-396",
+        "corpus-test-374",
+        "corpus-test-376",
+        "corpus-test-433",
+        "corpus-test-386",
+        "corpus-test-370",
+        "corpus-test-364",
+        "corpus-test-398",
+        "corpus-test-402",
+        "corpus-test-409",
+        "corpus-test-373",
+        "corpus-test-417"
+      ],
+      "top_contrib_indices": [
+        7,
+        34,
+        10,
+        32,
+        12
+      ],
+      "bottom_contrib_indices": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "top_contrib_values": [
+        0.035122163593769073,
+        0.028839562088251114,
+        0.02826165035367012,
+        0.02741212211549282,
+        0.027073396369814873
+      ],
+      "bottom_contrib_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ]
+}

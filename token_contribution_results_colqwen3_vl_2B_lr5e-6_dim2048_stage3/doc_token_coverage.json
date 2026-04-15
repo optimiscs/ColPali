@@ -1,0 +1,1347 @@
+{
+  "per_doc": [
+    {
+      "query_id": "query-test-302",
+      "doc_id": "corpus-test-555",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 15,
+      "coverage_ratio": 0.2830188679245283,
+      "top_matched_token_indices": [
+        0,
+        1191,
+        519,
+        937,
+        650,
+        1227,
+        845,
+        494,
+        1199,
+        495,
+        402,
+        216,
+        217,
+        540,
+        894
+      ]
+    },
+    {
+      "query_id": "query-test-302",
+      "doc_id": "corpus-test-554",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 14,
+      "coverage_ratio": 0.2641509433962264,
+      "top_matched_token_indices": [
+        0,
+        993,
+        449,
+        453,
+        517,
+        934,
+        1159,
+        1227,
+        299,
+        881,
+        500,
+        214,
+        215,
+        156
+      ]
+    },
+    {
+      "query_id": "query-test-302",
+      "doc_id": "corpus-test-1178",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 14,
+      "coverage_ratio": 0.2641509433962264,
+      "top_matched_token_indices": [
+        0,
+        993,
+        1122,
+        449,
+        453,
+        517,
+        1227,
+        299,
+        1202,
+        214,
+        215,
+        1081,
+        698,
+        1083
+      ]
+    },
+    {
+      "query_id": "query-test-302",
+      "doc_id": "corpus-test-1326",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 16,
+      "coverage_ratio": 0.3018867924528302,
+      "top_matched_token_indices": [
+        0,
+        929,
+        576,
+        650,
+        1227,
+        493,
+        494,
+        495,
+        975,
+        540,
+        658,
+        157,
+        216,
+        217,
+        476,
+        893
+      ]
+    },
+    {
+      "query_id": "query-test-302",
+      "doc_id": "corpus-test-884",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 13,
+      "coverage_ratio": 0.24528301886792453,
+      "top_matched_token_indices": [
+        0,
+        966,
+        1227,
+        655,
+        1138,
+        499,
+        308,
+        884,
+        216,
+        217,
+        410,
+        317,
+        1118
+      ]
+    },
+    {
+      "query_id": "query-test-303",
+      "doc_id": "corpus-test-341",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 14,
+      "coverage_ratio": 0.2641509433962264,
+      "top_matched_token_indices": [
+        0,
+        416,
+        421,
+        262,
+        423,
+        72,
+        1227,
+        1228,
+        749,
+        143,
+        1233,
+        83,
+        88,
+        89
+      ]
+    },
+    {
+      "query_id": "query-test-303",
+      "doc_id": "corpus-test-310",
+      "is_relevant": true,
+      "doc_length": 53,
+      "unique_tokens_matched": 13,
+      "coverage_ratio": 0.24528301886792453,
+      "top_matched_token_indices": [
+        0,
+        800,
+        1216,
+        771,
+        550,
+        809,
+        1227,
+        335,
+        1203,
+        889,
+        251,
+        1212,
+        699
+      ]
+    },
+    {
+      "query_id": "query-test-303",
+      "doc_id": "corpus-test-308",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 8,
+      "coverage_ratio": 0.1509433962264151,
+      "top_matched_token_indices": [
+        0,
+        771,
+        714,
+        1227,
+        523,
+        748,
+        855,
+        889
+      ]
+    },
+    {
+      "query_id": "query-test-303",
+      "doc_id": "corpus-test-135",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 11,
+      "coverage_ratio": 0.20754716981132076,
+      "top_matched_token_indices": [
+        0,
+        678,
+        712,
+        1227,
+        1036,
+        237,
+        1228,
+        1105,
+        721,
+        722,
+        856
+      ]
+    },
+    {
+      "query_id": "query-test-303",
+      "doc_id": "corpus-test-336",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 12,
+      "coverage_ratio": 0.22641509433962265,
+      "top_matched_token_indices": [
+        0,
+        1091,
+        996,
+        617,
+        1227,
+        1134,
+        348,
+        693,
+        567,
+        601,
+        251,
+        476
+      ]
+    },
+    {
+      "query_id": "query-test-304",
+      "doc_id": "corpus-test-63",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 10,
+      "coverage_ratio": 0.18867924528301888,
+      "top_matched_token_indices": [
+        0,
+        128,
+        129,
+        1227,
+        940,
+        939,
+        87,
+        92,
+        157,
+        158
+      ]
+    },
+    {
+      "query_id": "query-test-304",
+      "doc_id": "corpus-test-250",
+      "is_relevant": true,
+      "doc_length": 53,
+      "unique_tokens_matched": 12,
+      "coverage_ratio": 0.22641509433962265,
+      "top_matched_token_indices": [
+        0,
+        134,
+        328,
+        329,
+        77,
+        78,
+        1233,
+        694,
+        376,
+        1112,
+        476,
+        766
+      ]
+    },
+    {
+      "query_id": "query-test-304",
+      "doc_id": "corpus-test-238",
+      "is_relevant": true,
+      "doc_length": 53,
+      "unique_tokens_matched": 13,
+      "coverage_ratio": 0.24528301886792453,
+      "top_matched_token_indices": [
+        0,
+        834,
+        451,
+        77,
+        78,
+        497,
+        18,
+        593,
+        820,
+        1112,
+        347,
+        540,
+        766
+      ]
+    },
+    {
+      "query_id": "query-test-304",
+      "doc_id": "corpus-test-228",
+      "is_relevant": true,
+      "doc_length": 53,
+      "unique_tokens_matched": 12,
+      "coverage_ratio": 0.22641509433962265,
+      "top_matched_token_indices": [
+        0,
+        771,
+        547,
+        932,
+        486,
+        489,
+        426,
+        460,
+        78,
+        401,
+        761,
+        347
+      ]
+    },
+    {
+      "query_id": "query-test-304",
+      "doc_id": "corpus-test-255",
+      "is_relevant": true,
+      "doc_length": 53,
+      "unique_tokens_matched": 14,
+      "coverage_ratio": 0.2641509433962264,
+      "top_matched_token_indices": [
+        0,
+        612,
+        328,
+        329,
+        617,
+        172,
+        77,
+        78,
+        976,
+        376,
+        858,
+        476,
+        444,
+        766
+      ]
+    },
+    {
+      "query_id": "query-test-305",
+      "doc_id": "corpus-test-312",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 9,
+      "coverage_ratio": 0.16981132075471697,
+      "top_matched_token_indices": [
+        0,
+        228,
+        1227,
+        267,
+        811,
+        79,
+        719,
+        81,
+        178
+      ]
+    },
+    {
+      "query_id": "query-test-305",
+      "doc_id": "corpus-test-307",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 9,
+      "coverage_ratio": 0.16981132075471697,
+      "top_matched_token_indices": [
+        0,
+        477,
+        291,
+        487,
+        1227,
+        658,
+        406,
+        635,
+        1213
+      ]
+    },
+    {
+      "query_id": "query-test-305",
+      "doc_id": "corpus-test-349",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 10,
+      "coverage_ratio": 0.18867924528301888,
+      "top_matched_token_indices": [
+        0,
+        616,
+        1227,
+        811,
+        397,
+        622,
+        113,
+        433,
+        442,
+        827
+      ]
+    },
+    {
+      "query_id": "query-test-305",
+      "doc_id": "corpus-test-1634",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 9,
+      "coverage_ratio": 0.16981132075471697,
+      "top_matched_token_indices": [
+        0,
+        451,
+        711,
+        1227,
+        524,
+        430,
+        470,
+        89,
+        91
+      ]
+    },
+    {
+      "query_id": "query-test-305",
+      "doc_id": "corpus-test-137",
+      "is_relevant": true,
+      "doc_length": 53,
+      "unique_tokens_matched": 8,
+      "coverage_ratio": 0.1509433962264151,
+      "top_matched_token_indices": [
+        0,
+        70,
+        454,
+        231,
+        167,
+        1164,
+        269,
+        1105
+      ]
+    },
+    {
+      "query_id": "query-test-306",
+      "doc_id": "corpus-test-599",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 13,
+      "coverage_ratio": 0.24528301886792453,
+      "top_matched_token_indices": [
+        0,
+        801,
+        225,
+        130,
+        1227,
+        171,
+        241,
+        818,
+        1014,
+        87,
+        280,
+        92,
+        639
+      ]
+    },
+    {
+      "query_id": "query-test-306",
+      "doc_id": "corpus-test-487",
+      "is_relevant": true,
+      "doc_length": 53,
+      "unique_tokens_matched": 15,
+      "coverage_ratio": 0.2830188679245283,
+      "top_matched_token_indices": [
+        0,
+        706,
+        732,
+        228,
+        233,
+        1227,
+        268,
+        1233,
+        338,
+        370,
+        215,
+        221,
+        123,
+        924,
+        925
+      ]
+    },
+    {
+      "query_id": "query-test-306",
+      "doc_id": "corpus-test-609",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 14,
+      "coverage_ratio": 0.2641509433962264,
+      "top_matched_token_indices": [
+        0,
+        450,
+        701,
+        1227,
+        268,
+        171,
+        1052,
+        335,
+        338,
+        563,
+        215,
+        221,
+        924,
+        925
+      ]
+    },
+    {
+      "query_id": "query-test-306",
+      "doc_id": "corpus-test-600",
+      "is_relevant": true,
+      "doc_length": 53,
+      "unique_tokens_matched": 12,
+      "coverage_ratio": 0.22641509433962265,
+      "top_matched_token_indices": [
+        0,
+        774,
+        265,
+        1227,
+        237,
+        207,
+        335,
+        694,
+        535,
+        312,
+        952,
+        383
+      ]
+    },
+    {
+      "query_id": "query-test-306",
+      "doc_id": "corpus-test-610",
+      "is_relevant": true,
+      "doc_length": 53,
+      "unique_tokens_matched": 13,
+      "coverage_ratio": 0.24528301886792453,
+      "top_matched_token_indices": [
+        0,
+        321,
+        835,
+        1059,
+        797,
+        1227,
+        237,
+        783,
+        1233,
+        819,
+        312,
+        316,
+        221
+      ]
+    },
+    {
+      "query_id": "query-test-307",
+      "doc_id": "corpus-test-1259",
+      "is_relevant": true,
+      "doc_length": 53,
+      "unique_tokens_matched": 14,
+      "coverage_ratio": 0.2641509433962264,
+      "top_matched_token_indices": [
+        0,
+        419,
+        324,
+        455,
+        1227,
+        139,
+        939,
+        428,
+        847,
+        1170,
+        470,
+        794,
+        1022,
+        511
+      ]
+    },
+    {
+      "query_id": "query-test-307",
+      "doc_id": "corpus-test-1245",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 12,
+      "coverage_ratio": 0.22641509433962265,
+      "top_matched_token_indices": [
+        0,
+        545,
+        227,
+        356,
+        1227,
+        397,
+        561,
+        657,
+        757,
+        758,
+        824,
+        1114
+      ]
+    },
+    {
+      "query_id": "query-test-307",
+      "doc_id": "corpus-test-1271",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 12,
+      "coverage_ratio": 0.22641509433962265,
+      "top_matched_token_indices": [
+        0,
+        673,
+        131,
+        168,
+        138,
+        1227,
+        143,
+        84,
+        119,
+        154,
+        92,
+        1151
+      ]
+    },
+    {
+      "query_id": "query-test-307",
+      "doc_id": "corpus-test-926",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 11,
+      "coverage_ratio": 0.20754716981132076,
+      "top_matched_token_indices": [
+        0,
+        1059,
+        454,
+        1160,
+        1227,
+        971,
+        852,
+        1014,
+        1206,
+        1117,
+        831
+      ]
+    },
+    {
+      "query_id": "query-test-307",
+      "doc_id": "corpus-test-1264",
+      "is_relevant": true,
+      "doc_length": 53,
+      "unique_tokens_matched": 13,
+      "coverage_ratio": 0.24528301886792453,
+      "top_matched_token_indices": [
+        0,
+        743,
+        680,
+        1160,
+        554,
+        1227,
+        686,
+        1011,
+        602,
+        216,
+        665,
+        506,
+        507
+      ]
+    },
+    {
+      "query_id": "query-test-308",
+      "doc_id": "corpus-test-1558",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 15,
+      "coverage_ratio": 0.2830188679245283,
+      "top_matched_token_indices": [
+        0,
+        384,
+        258,
+        542,
+        1096,
+        392,
+        458,
+        1227,
+        712,
+        848,
+        336,
+        343,
+        666,
+        1019,
+        830
+      ]
+    },
+    {
+      "query_id": "query-test-308",
+      "doc_id": "corpus-test-1559",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 15,
+      "coverage_ratio": 0.2830188679245283,
+      "top_matched_token_indices": [
+        0,
+        548,
+        965,
+        868,
+        935,
+        1096,
+        936,
+        967,
+        1227,
+        1002,
+        941,
+        978,
+        85,
+        727,
+        857
+      ]
+    },
+    {
+      "query_id": "query-test-308",
+      "doc_id": "corpus-test-1526",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 9,
+      "coverage_ratio": 0.16981132075471697,
+      "top_matched_token_indices": [
+        0,
+        1025,
+        1096,
+        1227,
+        975,
+        593,
+        1014,
+        535,
+        124
+      ]
+    },
+    {
+      "query_id": "query-test-308",
+      "doc_id": "corpus-test-1522",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 13,
+      "coverage_ratio": 0.24528301886792453,
+      "top_matched_token_indices": [
+        0,
+        65,
+        385,
+        860,
+        1096,
+        809,
+        713,
+        1227,
+        881,
+        411,
+        758,
+        539,
+        828
+      ]
+    },
+    {
+      "query_id": "query-test-308",
+      "doc_id": "corpus-test-1518",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 14,
+      "coverage_ratio": 0.2641509433962264,
+      "top_matched_token_indices": [
+        0,
+        384,
+        1215,
+        931,
+        932,
+        1096,
+        1227,
+        267,
+        1168,
+        979,
+        984,
+        988,
+        445,
+        319
+      ]
+    },
+    {
+      "query_id": "query-test-309",
+      "doc_id": "corpus-test-1410",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 13,
+      "coverage_ratio": 0.24528301886792453,
+      "top_matched_token_indices": [
+        0,
+        896,
+        1223,
+        233,
+        1227,
+        881,
+        1169,
+        1105,
+        757,
+        86,
+        1015,
+        1206,
+        606
+      ]
+    },
+    {
+      "query_id": "query-test-309",
+      "doc_id": "corpus-test-1401",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 11,
+      "coverage_ratio": 0.20754716981132076,
+      "top_matched_token_indices": [
+        0,
+        675,
+        840,
+        808,
+        1227,
+        1105,
+        434,
+        18,
+        722,
+        1082,
+        1215
+      ]
+    },
+    {
+      "query_id": "query-test-309",
+      "doc_id": "corpus-test-1402",
+      "is_relevant": true,
+      "doc_length": 53,
+      "unique_tokens_matched": 9,
+      "coverage_ratio": 0.16981132075471697,
+      "top_matched_token_indices": [
+        0,
+        994,
+        1091,
+        805,
+        1227,
+        971,
+        1040,
+        20,
+        122
+      ]
+    },
+    {
+      "query_id": "query-test-309",
+      "doc_id": "corpus-test-1016",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 11,
+      "coverage_ratio": 0.20754716981132076,
+      "top_matched_token_indices": [
+        0,
+        1092,
+        37,
+        1227,
+        751,
+        1169,
+        979,
+        890,
+        795,
+        124,
+        701
+      ]
+    },
+    {
+      "query_id": "query-test-309",
+      "doc_id": "corpus-test-716",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 10,
+      "coverage_ratio": 0.18867924528301888,
+      "top_matched_token_indices": [
+        0,
+        1024,
+        452,
+        356,
+        458,
+        1227,
+        463,
+        306,
+        563,
+        371
+      ]
+    },
+    {
+      "query_id": "query-test-310",
+      "doc_id": "corpus-test-1550",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 22,
+      "coverage_ratio": 0.41509433962264153,
+      "top_matched_token_indices": [
+        0,
+        640,
+        771,
+        392,
+        786,
+        792,
+        804,
+        947,
+        444,
+        66,
+        67,
+        1095,
+        1098,
+        1227,
+        472,
+        1120,
+        359,
+        874,
+        1136,
+        117
+      ]
+    },
+    {
+      "query_id": "query-test-310",
+      "doc_id": "corpus-test-1054",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 18,
+      "coverage_ratio": 0.33962264150943394,
+      "top_matched_token_indices": [
+        0,
+        898,
+        867,
+        1155,
+        1095,
+        1098,
+        1227,
+        619,
+        430,
+        687,
+        592,
+        1012,
+        726,
+        54,
+        665,
+        155,
+        573,
+        478
+      ]
+    },
+    {
+      "query_id": "query-test-310",
+      "doc_id": "corpus-test-1341",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 18,
+      "coverage_ratio": 0.33962264150943394,
+      "top_matched_token_indices": [
+        0,
+        66,
+        773,
+        774,
+        1095,
+        1051,
+        1227,
+        1195,
+        749,
+        242,
+        562,
+        851,
+        213,
+        822,
+        856,
+        475,
+        1054,
+        1055
+      ]
+    },
+    {
+      "query_id": "query-test-310",
+      "doc_id": "corpus-test-500",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 16,
+      "coverage_ratio": 0.3018867924528302,
+      "top_matched_token_indices": [
+        0,
+        66,
+        422,
+        774,
+        168,
+        233,
+        1227,
+        237,
+        113,
+        881,
+        211,
+        787,
+        855,
+        856,
+        761,
+        1087
+      ]
+    },
+    {
+      "query_id": "query-test-310",
+      "doc_id": "corpus-test-1545",
+      "is_relevant": true,
+      "doc_length": 53,
+      "unique_tokens_matched": 16,
+      "coverage_ratio": 0.3018867924528302,
+      "top_matched_token_indices": [
+        0,
+        289,
+        805,
+        1095,
+        871,
+        1098,
+        1227,
+        523,
+        331,
+        366,
+        460,
+        337,
+        1105,
+        470,
+        888,
+        383
+      ]
+    },
+    {
+      "query_id": "query-test-311",
+      "doc_id": "corpus-test-1490",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 12,
+      "coverage_ratio": 0.22641509433962265,
+      "top_matched_token_indices": [
+        0,
+        545,
+        452,
+        837,
+        584,
+        1227,
+        304,
+        1233,
+        563,
+        310,
+        762,
+        830
+      ]
+    },
+    {
+      "query_id": "query-test-311",
+      "doc_id": "corpus-test-1518",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 12,
+      "coverage_ratio": 0.22641509433962265,
+      "top_matched_token_indices": [
+        0,
+        928,
+        265,
+        266,
+        447,
+        431,
+        1168,
+        337,
+        1233,
+        119,
+        478,
+        319
+      ]
+    },
+    {
+      "query_id": "query-test-311",
+      "doc_id": "corpus-test-1496",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 12,
+      "coverage_ratio": 0.22641509433962265,
+      "top_matched_token_indices": [
+        0,
+        1161,
+        1227,
+        428,
+        910,
+        887,
+        304,
+        1233,
+        563,
+        310,
+        727,
+        826
+      ]
+    },
+    {
+      "query_id": "query-test-311",
+      "doc_id": "corpus-test-1498",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 12,
+      "coverage_ratio": 0.22641509433962265,
+      "top_matched_token_indices": [
+        0,
+        1227,
+        111,
+        304,
+        1169,
+        1233,
+        563,
+        887,
+        727,
+        826,
+        732,
+        831
+      ]
+    },
+    {
+      "query_id": "query-test-311",
+      "doc_id": "corpus-test-1505",
+      "is_relevant": false,
+      "doc_length": 53,
+      "unique_tokens_matched": 10,
+      "coverage_ratio": 0.18867924528301888,
+      "top_matched_token_indices": [
+        0,
+        420,
+        170,
+        523,
+        1227,
+        1233,
+        563,
+        826,
+        1053,
+        414
+      ]
+    }
+  ],
+  "summary": {
+    "num_docs_analyzed": 50,
+    "avg_doc_coverage_ratio": 0.23886792452830188,
+    "min_doc_coverage_ratio": 0.1509433962264151,
+    "max_doc_coverage_ratio": 0.41509433962264153,
+    "num_dark_tokens_found": 20,
+    "num_hot_tokens_found": 20
+  },
+  "dark_tokens": [
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 1,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 2,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 3,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 4,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 5,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 6,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 7,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 8,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 9,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 10,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 11,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 12,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 13,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 14,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 15,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 16,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 17,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 18,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 19,
+      "hit_count": 0
+    },
+    {
+      "doc_id": "corpus-test-555",
+      "token_idx": 20,
+      "hit_count": 0
+    }
+  ],
+  "hot_tokens": [
+    {
+      "doc_id": "corpus-test-1264",
+      "token_idx": 0,
+      "hit_count": 6
+    },
+    {
+      "doc_id": "corpus-test-107",
+      "token_idx": 0,
+      "hit_count": 5
+    },
+    {
+      "doc_id": "corpus-test-310",
+      "token_idx": 0,
+      "hit_count": 4
+    },
+    {
+      "doc_id": "corpus-test-308",
+      "token_idx": 0,
+      "hit_count": 4
+    },
+    {
+      "doc_id": "corpus-test-721",
+      "token_idx": 0,
+      "hit_count": 4
+    },
+    {
+      "doc_id": "corpus-test-50",
+      "token_idx": 0,
+      "hit_count": 4
+    },
+    {
+      "doc_id": "corpus-test-1664",
+      "token_idx": 0,
+      "hit_count": 4
+    },
+    {
+      "doc_id": "corpus-test-1272",
+      "token_idx": 0,
+      "hit_count": 4
+    },
+    {
+      "doc_id": "corpus-test-137",
+      "token_idx": 0,
+      "hit_count": 3
+    },
+    {
+      "doc_id": "corpus-test-1259",
+      "token_idx": 0,
+      "hit_count": 3
+    },
+    {
+      "doc_id": "corpus-test-1518",
+      "token_idx": 0,
+      "hit_count": 3
+    },
+    {
+      "doc_id": "corpus-test-1498",
+      "token_idx": 0,
+      "hit_count": 3
+    },
+    {
+      "doc_id": "corpus-test-1505",
+      "token_idx": 0,
+      "hit_count": 3
+    },
+    {
+      "doc_id": "corpus-test-693",
+      "token_idx": 0,
+      "hit_count": 3
+    },
+    {
+      "doc_id": "corpus-test-1661",
+      "token_idx": 0,
+      "hit_count": 3
+    },
+    {
+      "doc_id": "corpus-test-424",
+      "token_idx": 0,
+      "hit_count": 3
+    },
+    {
+      "doc_id": "corpus-test-1489",
+      "token_idx": 0,
+      "hit_count": 3
+    },
+    {
+      "doc_id": "corpus-test-98",
+      "token_idx": 0,
+      "hit_count": 3
+    },
+    {
+      "doc_id": "corpus-test-71",
+      "token_idx": 0,
+      "hit_count": 3
+    },
+    {
+      "doc_id": "corpus-test-796",
+      "token_idx": 0,
+      "hit_count": 3
+    }
+  ]
+}
